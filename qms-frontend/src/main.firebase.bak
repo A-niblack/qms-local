@@ -1,0 +1,30 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+import { assertConfigOrExplain } from './firebase/firebaseConfig';
+import { AppProvider } from './context/AppContext'; 
+import 'bootstrap/dist/css/bootstrap.min.css';
+
+
+const rootEl = document.getElementById('root');
+const cfg = assertConfigOrExplain();
+
+if (!cfg.ok) {
+  rootEl.innerHTML = `
+    <div style="font-family:system-ui;padding:2rem;line-height:1.6">
+      <h1 style="margin:0 0 0.5rem 0">PDI Quality</h1>
+      <p>${cfg.message}</p>
+      <p>Please set your Vite env vars in Code.env</code> and rebuild.</p>
+    </div>`;
+} else {
+  ReactDOM.createRoot(rootEl).render(
+    <React.StrictMode>
+      {/* 2. Wrap the App in the AppProvider */}
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </React.StrictMode>
+  );
+}
+

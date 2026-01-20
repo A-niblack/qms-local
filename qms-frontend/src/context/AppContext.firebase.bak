@@ -1,0 +1,141 @@
+import React, { useState, useEffect, createContext } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, query, Timestamp } from 'firebase/firestore';
+import { auth, db, appId } from '../firebase/index.js';
+
+// --- 1. NEW ROLES ---
+export const ROLES = {
+  ADMIN: 'admin',
+  ENGINEER: 'engineer',
+  INSPECTOR: 'inspector',
+  WARRANTY_MANAGER: 'warranty_manager',
+};
+
+export const AppContext = createContext(null);
+
+export const AppProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState([]);
+  
+  // --- 2. UPDATED DATA STATES (Initialized as empty arrays) ---
+  const [partTypes, setPartTypes] = useState([]);
+  const [inspectionPlans, setInspectionPlans] = useState([]);
+  const [shipments, setShipments] = useState([]);
+  const [inspections, setInspections] = useState([]);
+  const [quarantineBatches, setQuarantineBatches] = useState([]);
+  const [engineeringTasks, setEngineeringTasks] = useState([]);
+  const [warrantyClaims, setWarrantyClaims] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [gages, setGages] = useState([]);
+  const [drawings, setDrawings] = useState([]);
+
+  // Auth + live role load...
+  useEffect(() => {
+    let unsubUser = null;
+    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (typeof unsubUser === 'function') { unsubUser(); unsubUser = null; }
+      if (!firebaseUser) { setUser(null); setLoading(false); return; }
+      try {
+        const userRef = doc(db, `/artifacts/${appId}/public/data/users`, firebaseUser.uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          // Default new users to Inspector
+          await setDoc(userRef, { 
+            uid: firebaseUser.uid, 
+            email: firebaseUser.email, 
+            displayName: firebaseUser.displayName || '', 
+            role: ROLES.INSPECTOR, // Default role
+            createdAt: Timestamp.now(), 
+            updatedAt: Timestamp.now() 
+          });
+        } else {
+          await updateDoc(userRef, { updatedAt: Timestamp.now() });
+        }
+        unsubUser = onSnapshot(userRef, (docSnap) => {
+          const data = docSnap.data() || {};
+          setUser({ 
+            uid: firebaseUser.uid, 
+            email: firebaseUser.email, 
+            displayName: firebaseUser.displayName || data.displayName || '', 
+            ...data, 
+            role: data.role || ROLES.INSPECTOR 
+          });
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Auth init error:', err);
+        setUser({ uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName || '' });
+        setLoading(false);
+      }
+    });
+    return () => { if (typeof unsubUser === 'function') unsubUser(); unsubAuth(); };
+  }, []);
+
+  // Data subscriptions...
+  useEffect(() => {
+    if (!user?.role) return;
+    const base = `/artifacts/${appId}/public/data`;
+
+    // --- 3. ALL NEW SUBSCRIPTIONS ---
+    const unsubs = [
+      onSnapshot(query(collection(db, `${base}/partTypes`)), s => setPartTypes(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, `${base}/inspectionPlans`)), s => setInspectionPlans(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, `${base}/shipments`)), s => setShipments(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, `${base}/inspections`)), s => setInspections(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, `${base}/quarantineBatches`)), s => setQuarantineBatches(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, `${base}/engineeringTasks`)), s => setEngineeringTasks(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, `${base}/warrantyClaims`)), s => setWarrantyClaims(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, `${base}/notifications`)), s => setNotifications(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      // --- TYPO FIX HERE ---
+      onSnapshot(query(collection(db, `${base}/gages`)), s => setGages(s.docs.map(d => ({ id: d.id, ...d.data() })))), // Was setGGages
+      onSnapshot(query(collection(db, `${base}/drawings`)), s => setDrawings(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+    ];
+
+    if (user.role === ROLES.ADMIN) {
+      unsubs.push(onSnapshot(query(collection(db, `${base}/users`)), s => setAllUsers(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+    }
+
+    return () => unsubs.forEach(u => u && u());
+  }, [user?.role]);
+
+  // --- 4. NEW CONTEXT VALUE ---
+  // We guarantee arrays by initializing with useState([])
+  const contextValue = {
+    user,
+    loading,
+    allUsers,
+    
+    // QC Data
+    partTypes,
+    inspectionPlans,
+    shipments,
+    inspections,
+    quarantineBatches,
+    engineeringTasks,
+    notifications,
+    
+    // Other Modules
+    warrantyClaims,
+    gages,
+    drawings,
+
+    // --- Placeholder Functions (to be built out) ---
+    // We will add functions here as we build the modals
+    createShipment: async () => {},
+    createCfqInspection: async () => {},
+    createEngineeringEvaluation: async () => {},
+    createQuarantineBatch: async () => {},
+    updateQuarantineBatch: async () => {},
+    createWarrantyClaim: async () => {},
+    updateWarrantyClaim: async () => {},
+  };
+
+  return (
+    <AppContext.Provider value={contextValue}>
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+

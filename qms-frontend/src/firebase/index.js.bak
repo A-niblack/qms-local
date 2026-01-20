@@ -1,0 +1,13 @@
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { firebaseConfig, appConfig } from './firebaseConfig.js';
+
+// --- GLOBAL CONFIG & INITIALIZATION ---
+export const appId = appConfig.appId; // default is 'default-qms-app' per firebaseConfig.js [cite: 7]
+const app = initializeApp(firebaseConfig); 
+
+export const auth = getAuth(app); 
+export const db = getFirestore(app); 
+export const storage = getStorage(app); 

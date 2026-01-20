@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: qms-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123
+      MYSQL_DATABASE: qms_db
+      MYSQL_USER: qms_user
+      MYSQL_PASSWORD: qms_password123
+    ports:
+      - "3306:3306"
+    volumes:
+      - qms_mysql_data:/var/lib/mysql
+
+volumes:
+  qms_mysql_data:

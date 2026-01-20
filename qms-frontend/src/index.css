@@ -1,0 +1,10 @@
+@tailwind base; 
+@tailwind components; 
+@tailwind utilities;
+
+input,
+textarea,
+select {
+  color: #000 !important; /* solid black text */
+  background-color: #fff; /* ensure white background */
+}
