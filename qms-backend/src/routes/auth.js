@@ -14,20 +14,20 @@ const router = express.Router();
  */
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, displayName } = req.body;
+    const { email, password, display_name } = req.body;
 
     // Validation
     if (!email || !password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Validation failed',
-        message: 'Email and password are required' 
+        message: 'Email and password are required'
       });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Validation failed',
-        message: 'Password must be at least 6 characters' 
+        message: 'Password must be at least 6 characters'
       });
     }
 
@@ -38,44 +38,44 @@ router.post('/register', async (req, res) => {
     );
 
     if (existingUsers.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Registration failed',
-        message: 'An account with this email already exists' 
+        message: 'An account with this email already exists'
       });
     }
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
-    
+
     // Create user
     const userId = uuidv4();
-    
+
     await pool.query(
       `INSERT INTO users (id, email, password_hash, display_name, role, tier)
        VALUES (?, ?, ?, ?, 'inspector', 'free')`,
-      [userId, email.toLowerCase(), passwordHash, displayName || '']
+      [userId, email.toLowerCase(), passwordHash, display_name || '']
     );
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId, 
-        email: email.toLowerCase(), 
-        role: 'inspector', 
-        tier: 'free' 
+      {
+        userId,
+        email: email.toLowerCase(),
+        role: 'inspector',
+        tier: 'free'
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    // Return success response
+    // Return success response with snake_case
     res.status(201).json({
       message: 'Registration successful',
       token,
       user: {
         id: userId,
         email: email.toLowerCase(),
-        displayName: displayName || '',
+        display_name: display_name || '',
         role: 'inspector',
         tier: 'free'
       }
@@ -83,9 +83,9 @@ router.post('/register', async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Registration failed',
-      message: 'An error occurred during registration' 
+      message: 'An error occurred during registration'
     });
   }
 });
@@ -100,9 +100,9 @@ router.post('/login', async (req, res) => {
 
     // Validation
     if (!email || !password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Validation failed',
-        message: 'Email and password are required' 
+        message: 'Email and password are required'
       });
     }
 
@@ -113,9 +113,9 @@ router.post('/login', async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Authentication failed',
-        message: 'Invalid email or password' 
+        message: 'Invalid email or password'
       });
     }
 
@@ -123,11 +123,11 @@ router.post('/login', async (req, res) => {
 
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password_hash);
-    
+
     if (!validPassword) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Authentication failed',
-        message: 'Invalid email or password' 
+        message: 'Invalid email or password'
       });
     }
 
@@ -139,24 +139,24 @@ router.post('/login', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role, 
-        tier: user.tier 
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        tier: user.tier
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    // Return success response
+    // Return success response with snake_case
     res.json({
       message: 'Login successful',
       token,
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.display_name,
+        display_name: user.display_name,
         role: user.role,
         tier: user.tier
       }
@@ -164,9 +164,9 @@ router.post('/login', async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Login failed',
-      message: 'An error occurred during login' 
+      message: 'An error occurred during login'
     });
   }
 });
@@ -184,31 +184,32 @@ router.get('/me', authenticateToken, async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'User not found',
-        message: 'Your user account could not be found' 
+        message: 'Your user account could not be found'
       });
     }
 
     const user = users[0];
-    
+
+    // Return snake_case response
     res.json({
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.display_name,
+        display_name: user.display_name,
         role: user.role,
         tier: user.tier,
-        createdAt: user.created_at,
-        lastLogin: user.last_login
+        created_at: user.created_at,
+        last_login: user.last_login
       }
     });
 
   } catch (error) {
     console.error('Get user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Request failed',
-      message: 'Could not retrieve user information' 
+      message: 'Could not retrieve user information'
     });
   }
 });
@@ -219,19 +220,19 @@ router.get('/me', authenticateToken, async (req, res) => {
  */
 router.put('/password', authenticateToken, async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { current_password, new_password } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
+    if (!current_password || !new_password) {
+      return res.status(400).json({
         error: 'Validation failed',
-        message: 'Current password and new password are required' 
+        message: 'Current password and new password are required'
       });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ 
+    if (new_password.length < 6) {
+      return res.status(400).json({
         error: 'Validation failed',
-        message: 'New password must be at least 6 characters' 
+        message: 'New password must be at least 6 characters'
       });
     }
 
@@ -246,18 +247,18 @@ router.put('/password', authenticateToken, async (req, res) => {
     }
 
     // Verify current password
-    const validPassword = await bcrypt.compare(currentPassword, users[0].password_hash);
-    
+    const validPassword = await bcrypt.compare(current_password, users[0].password_hash);
+
     if (!validPassword) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Authentication failed',
-        message: 'Current password is incorrect' 
+        message: 'Current password is incorrect'
       });
     }
 
     // Hash and update new password
-    const newPasswordHash = await bcrypt.hash(newPassword, 12);
-    
+    const newPasswordHash = await bcrypt.hash(new_password, 12);
+
     await pool.query(
       'UPDATE users SET password_hash = ? WHERE id = ?',
       [newPasswordHash, req.user.userId]
@@ -267,9 +268,9 @@ router.put('/password', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Password change error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Request failed',
-      message: 'Could not update password' 
+      message: 'Could not update password'
     });
   }
 });

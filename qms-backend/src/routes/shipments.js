@@ -43,10 +43,19 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create shipment
+// Create shipment (snake_case request body)
 router.post('/', async (req, res) => {
   try {
-    const { part_type_id, shipment_number, supplier, supplier_lot, quantity, received_date, po_number, notes } = req.body;
+    const {
+      part_type_id,
+      shipment_number,
+      supplier,
+      supplier_lot,
+      quantity,
+      received_date,
+      po_number,
+      notes
+    } = req.body;
     
     if (!part_type_id || !quantity) {
       return res.status(400).json({ error: 'Part type and quantity are required' });
@@ -56,7 +65,18 @@ router.post('/', async (req, res) => {
     await pool.query(
       `INSERT INTO shipments (id, part_type_id, shipment_number, supplier, supplier_lot, quantity, received_date, po_number, notes, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, part_type_id, shipment_number || null, supplier || '', supplier_lot || '', quantity, received_date || null, po_number || '', notes || '', req.user.userId]
+      [
+        id,
+        part_type_id,
+        shipment_number || null,
+        supplier || '',
+        supplier_lot || '',
+        quantity,
+        received_date || null,
+        po_number || '',
+        notes || '',
+        req.user.userId
+      ]
     );
 
     const [newShipment] = await pool.query('SELECT * FROM shipments WHERE id = ?', [id]);
@@ -67,39 +87,28 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update shipment
-// Update the PUT route to handle both naming conventions
+// Update shipment (snake_case request body)
 router.put('/:id', async (req, res) => {
   try {
-    const { 
-      part_type_id, 
+    const {
       part_type_id,
-      shipment_number, 
       shipment_number,
-      supplier, 
-      supplier_lot, 
+      supplier,
       supplier_lot,
-      quantity, 
-      quantity_received, 
+      quantity,
       quantity_received,
-      received_date, 
       received_date,
-      po_number, 
       po_number,
-      status, 
-      notes,
-      lotNumber,
-      lot_number
+      status,
+      notes
     } = req.body;
-    
-    // Handle both camelCase and snake_case
-    const finalPartTypeId = part_type_id || part_type_id;
-    const finalShipmentNumber = shipment_number || shipment_number || lotNumber || lot_number;
-    const finalSupplierLot = supplier_lot || supplier_lot;
-    const finalQuantityReceived = quantity_received || quantity_received;
-    const finalReceivedDate = received_date || received_date;
-    const finalPoNumber = po_number || po_number;
-    
+
+    // Check shipment exists
+    const [existing] = await pool.query('SELECT id FROM shipments WHERE id = ?', [req.params.id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Shipment not found' });
+    }
+
     await pool.query(
       `UPDATE shipments 
        SET part_type_id = COALESCE(?, part_type_id), 
@@ -114,31 +123,27 @@ router.put('/:id', async (req, res) => {
            notes = COALESCE(?, notes)
        WHERE id = ?`,
       [
-        finalPartTypeId, 
-        finalShipmentNumber, 
-        supplier, 
-        finalSupplierLot, 
-        quantity, 
-        finalQuantityReceived, 
-        finalReceivedDate, 
-        finalPoNumber, 
-        status, 
-        notes, 
+        part_type_id,
+        shipment_number,
+        supplier,
+        supplier_lot,
+        quantity,
+        quantity_received,
+        received_date,
+        po_number,
+        status,
+        notes,
         req.params.id
       ]
     );
 
     const [updated] = await pool.query('SELECT * FROM shipments WHERE id = ?', [req.params.id]);
-    if (updated.length === 0) {
-      return res.status(404).json({ error: 'Shipment not found' });
-    }
     res.json(updated[0]);
   } catch (error) {
     console.error('Update shipment error:', error);
     res.status(500).json({ error: 'Failed to update shipment' });
   }
 });
-
 
 // Delete shipment
 router.delete('/:id', requireRole('admin'), async (req, res) => {

@@ -1,9 +1,12 @@
 ﻿// src/features/warranty/WarrantyModal.jsx
-// MIGRATED FROM FIREBASE TO REST API
+// SNAKE_CASE NORMALIZED
 
 import React, { useState, useContext, useRef } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { warrantyApi, filesApi } from '../../services/api';
+
+// Helper to get part number from either snake_case or camelCase
+const getPartNumber = (pt) => pt.part_number || pt.partNumber || '';
 
 export default function WarrantyModal({ claim, onClose, onSuccess }) {
   const { partTypes, user } = useContext(AppContext);
@@ -12,6 +15,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Form state uses snake_case to match backend
   const [formData, setFormData] = useState({
     claim_number: claim?.claim_number || '',
     part_type_id: claim?.part_type_id || '',
@@ -20,28 +24,27 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
     customer_email: claim?.customer_email || '',
     customer_phone: claim?.customer_phone || '',
     serial_numbers: claim?.serial_numbers || '',
-    purchaseDate: claim?.purchaseDate?.split('T')[0] || '',
-    failureDate: claim?.failureDate?.split('T')[0] || '',
+    purchase_date: claim?.purchase_date?.split('T')[0] || '',
+    failure_date: claim?.failure_date?.split('T')[0] || '',
     failure_description: claim?.failure_description || '',
     failure_mode: claim?.failure_mode || '',
-    rootCause: claim?.rootCause || '',
-    correctiveAction: claim?.correctiveAction || '',
+    root_cause: claim?.root_cause || '',
+    corrective_action: claim?.corrective_action || '',
     resolution: claim?.resolution || '',
-    cost: claim?.cost || '',
+    cost: claim?.cost || claim?.credit_amount || '',
     priority: claim?.priority || 'medium',
     status: claim?.status || 'open',
-    images: claim?.images || [],
+    images: claim?.images || claim?.photos || [],
     attachments: claim?.attachments || [],
     notes: claim?.notes || ''
   });
 
   const statuses = [
     { value: 'open', label: 'Open' },
-    { value: 'in-progress', label: 'In Progress' },
-    { value: 'pending-parts', label: 'Pending Parts' },
-    { value: 'pending-approval', label: 'Pending Approval' },
+    { value: 'investigating', label: 'Investigating' },
+    { value: 'pending_parts', label: 'Pending Parts' },
     { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
+    { value: 'denied', label: 'Denied' },
     { value: 'closed', label: 'Closed' }
   ];
 
@@ -83,14 +86,14 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
         const result = await filesApi.upload(file, 'warranty');
         uploaded.push({
           url: result.url,
-          fileName: file.name,
-          fileType: file.type,
-          uploadedAt: new Date().toISOString()
+          file_name: file.name,
+          file_type: file.type,
+          uploaded_at: new Date().toISOString()
         });
       }
 
-      const images = uploaded.filter(f => f.fileType.startsWith('image/'));
-      const attachments = uploaded.filter(f => !f.fileType.startsWith('image/'));
+      const images = uploaded.filter(f => f.file_type.startsWith('image/'));
+      const attachments = uploaded.filter(f => !f.file_type.startsWith('image/'));
 
       setFormData(prev => ({
         ...prev,
@@ -142,19 +145,28 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
       setLoading(true);
       setError(null);
 
+      // Build snake_case payload for backend
       const claimData = {
-        ...formData,
+        part_type_id: formData.part_type_id || null,
         claim_number: formData.claim_number || generateClaimNumber(),
-        cost: formData.cost ? parseFloat(formData.cost) : null,
-        updatedBy: user?.id,
-        updatedByName: user?.displayName || user?.email
+        customer_name: formData.customer_name,
+        customer_contact: formData.customer_contact,
+        customer_email: formData.customer_email,
+        customer_phone: formData.customer_phone,
+        serial_numbers: formData.serial_numbers,
+        failure_date: formData.failure_date || null,
+        failure_description: formData.failure_description,
+        failure_mode: formData.failure_mode,
+        status: formData.status,
+        notes: formData.notes
       };
 
       if (claim) {
+        // For updates, include resolution fields
+        claimData.resolution = formData.resolution;
+        claimData.credit_amount = formData.cost ? parseFloat(formData.cost) : null;
         await warrantyApi.update(claim.id, claimData);
       } else {
-        claimData.createdBy = user?.id;
-        claimData.createdByName = user?.displayName || user?.email;
         await warrantyApi.create(claimData);
       }
 
@@ -205,7 +217,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                     <option value="">Select Part Type...</option>
                     {partTypes?.map((pt) => (
                       <option key={pt.id} value={pt.id}>
-                        {pt.partNumber}
+                        {getPartNumber(pt)}
                       </option>
                     ))}
                   </select>
@@ -281,7 +293,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   />
                 </div>
                 <div className="col-md-4 mb-3">
-                  <label className="form-label">Serial Number</label>
+                  <label className="form-label">Serial Number(s)</label>
                   <input
                     type="text"
                     className="form-control"
@@ -311,8 +323,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="date"
                     className="form-control"
-                    value={formData.purchaseDate}
-                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+                    value={formData.purchase_date}
+                    onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
                   />
                 </div>
                 <div className="col-md-6 mb-3">
@@ -320,8 +332,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="date"
                     className="form-control"
-                    value={formData.failureDate}
-                    onChange={(e) => setFormData({ ...formData, failureDate: e.target.value })}
+                    value={formData.failure_date}
+                    onChange={(e) => setFormData({ ...formData, failure_date: e.target.value })}
                   />
                 </div>
               </div>
@@ -364,8 +376,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <textarea
                     className="form-control"
                     rows="2"
-                    value={formData.rootCause}
-                    onChange={(e) => setFormData({ ...formData, rootCause: e.target.value })}
+                    value={formData.root_cause}
+                    onChange={(e) => setFormData({ ...formData, root_cause: e.target.value })}
                     placeholder="Identified root cause..."
                   />
                 </div>
@@ -374,8 +386,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <textarea
                     className="form-control"
                     rows="2"
-                    value={formData.correctiveAction}
-                    onChange={(e) => setFormData({ ...formData, correctiveAction: e.target.value })}
+                    value={formData.corrective_action}
+                    onChange={(e) => setFormData({ ...formData, corrective_action: e.target.value })}
                     placeholder="Actions taken or planned..."
                   />
                 </div>
@@ -427,7 +439,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                         <div className="position-relative">
                           <img
                             src={img.url}
-                            alt={img.fileName}
+                            alt={img.file_name || img.fileName}
                             className="img-thumbnail"
                             style={{ width: '100%', height: '100px', objectFit: 'cover' }}
                           />
@@ -436,7 +448,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                             className="btn btn-sm btn-danger position-absolute top-0 end-0"
                             onClick={() => handleRemoveImage(index)}
                           >
-                            Ã—
+                            ×
                           </button>
                         </div>
                       </div>
@@ -453,14 +465,14 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                     {formData.attachments.map((att, index) => (
                       <li key={index} className="list-group-item d-flex justify-content-between align-items-center py-1">
                         <a href={att.url} target="_blank" rel="noopener noreferrer">
-                          {att.fileName}
+                          {att.file_name || att.fileName}
                         </a>
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => handleRemoveAttachment(index)}
                         >
-                          Ã—
+                          ×
                         </button>
                       </li>
                     ))}

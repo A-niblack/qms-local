@@ -38,11 +38,11 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create user (admin only)
+// Create user (admin only) - expects snake_case
 router.post('/', async (req, res) => {
   try {
-    const { email, password, displayName, role, tier } = req.body;
-    
+    const { email, password, display_name, role, tier } = req.body;
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -54,11 +54,11 @@ router.post('/', async (req, res) => {
 
     const id = uuidv4();
     const passwordHash = await bcrypt.hash(password, 12);
-    
+
     await pool.query(
       `INSERT INTO users (id, email, password_hash, display_name, role, tier)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, email.toLowerCase(), passwordHash, displayName || '', role || 'inspector', tier || 'free']
+      [id, email.toLowerCase(), passwordHash, display_name || '', role || 'inspector', tier || 'free']
     );
 
     const [newUser] = await pool.query(
@@ -71,18 +71,29 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update user (admin only)
+// Update user (admin only) - expects snake_case
 router.put('/:id', async (req, res) => {
   try {
-    const { displayName, role, tier, isActive } = req.body;
-    
+    const { display_name, role, tier, is_active } = req.body;
+
+    // Check user exists
+    const [existing] = await pool.query('SELECT id FROM users WHERE id = ?', [req.params.id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     await pool.query(
-      'UPDATE users SET display_name = ?, role = ?, tier = ?, is_active = ? WHERE id = ?',
-      [displayName, role, tier, isActive !== false, req.params.id]
+      `UPDATE users 
+       SET display_name = COALESCE(?, display_name),
+           role = COALESCE(?, role),
+           tier = COALESCE(?, tier),
+           is_active = COALESCE(?, is_active)
+       WHERE id = ?`,
+      [display_name, role, tier, is_active, req.params.id]
     );
 
     const [updated] = await pool.query(
-      'SELECT id, email, display_name, role, tier, is_active FROM users WHERE id = ?',
+      'SELECT id, email, display_name, role, tier, is_active, created_at FROM users WHERE id = ?',
       [req.params.id]
     );
     res.json(updated[0]);
@@ -94,15 +105,15 @@ router.put('/:id', async (req, res) => {
 // Reset user password (admin only)
 router.put('/:id/password', async (req, res) => {
   try {
-    const { newPassword } = req.body;
-    
-    if (!newPassword || newPassword.length < 6) {
+    const { new_password } = req.body;
+
+    if (!new_password || new_password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const passwordHash = await bcrypt.hash(new_password, 12);
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, req.params.id]);
-    
+
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update password' });

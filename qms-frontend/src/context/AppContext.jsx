@@ -1,5 +1,6 @@
 // src/context/AppContext.jsx
 // MIGRATED FROM FIREBASE TO REST API
+// UPDATED: Improved checkAuth to handle stale tokens gracefully
 
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import {
@@ -100,27 +101,59 @@ export function AppProvider({ children }) {
   }, []);
 
   const checkAuth = async () => {
-    if (!getToken()) {
+    const token = getToken();
+    
+    // No token present - not authenticated, finish loading
+    if (!token) {
+      setUser(null);
       setLoading(false);
       return;
     }
 
     try {
       const response = await authApi.me();
-      setUser(response.user);
-      // Load data after successful auth
-      await loadAllData();
+      
+      // Successful response with user data
+      if (response && response.user) {
+        setUser(response.user);
+        // Load data after successful auth
+        await loadAllData(response.user);
+      } else {
+        // Response OK but no user data - clear stale token
+        console.warn('Auth response missing user data, clearing token');
+        clearToken();
+        setUser(null);
+      }
     } catch (err) {
-      console.error('Auth check failed:', err);
-      clearToken();
-      setUser(null);
+      // Handle specific error cases
+      const errorMessage = err.message || '';
+      
+      if (
+        errorMessage.includes('User not found') ||
+        errorMessage.includes('Invalid token') ||
+        errorMessage.includes('expired') ||
+        errorMessage.includes('401') ||
+        errorMessage.includes('Session expired')
+      ) {
+        // Token is stale or user no longer exists - clear it silently
+        console.info('Clearing stale auth token');
+        clearToken();
+        setUser(null);
+      } else {
+        // Unexpected error - log it but still clear token for safety
+        console.error('Auth check failed with unexpected error:', err);
+        clearToken();
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Load all data
-  const loadAllData = async () => {
+  // Load all data - accepts optional user param for initial load
+  const loadAllData = async (currentUser = null) => {
+    const activeUser = currentUser || user;
+    
     try {
       const [
         partTypesRes,
@@ -155,7 +188,7 @@ export function AppProvider({ children }) {
       setNotifications(notificationsRes.data || notificationsRes || []);
 
       // Load users if admin
-      if (user?.role === ROLES.ADMIN) {
+      if (activeUser?.role === ROLES.ADMIN) {
         try {
           const usersRes = await usersApi.getAll();
           setAllUsers(usersRes.data || usersRes || []);
@@ -171,7 +204,7 @@ export function AppProvider({ children }) {
   // Refresh data
   const refreshData = useCallback(async () => {
     if (user) {
-      await loadAllData();
+      await loadAllData(user);
     }
   }, [user]);
 
@@ -181,7 +214,7 @@ export function AppProvider({ children }) {
       setAuthError(null);
       const response = await authApi.login(email, password);
       setUser(response.user);
-      await loadAllData();
+      await loadAllData(response.user);
       return { success: true };
     } catch (err) {
       setAuthError(err.message);
@@ -194,7 +227,7 @@ export function AppProvider({ children }) {
       setAuthError(null);
       const response = await authApi.register(email, password, displayName);
       setUser(response.user);
-      await loadAllData();
+      await loadAllData(response.user);
       return { success: true };
     } catch (err) {
       setAuthError(err.message);

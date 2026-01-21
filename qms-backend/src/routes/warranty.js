@@ -37,40 +37,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create warranty claim
-// Update the POST route to handle frontend field names
+// Create warranty claim (snake_case request body)
 router.post('/', async (req, res) => {
   try {
-    const { 
-      part_type_id, 
-      claim_number, 
-      customer_name, 
-      customer_contact, 
-      customer_email, 
-      customer_phone, 
-      quantity, 
-      failureDate,
-      purchaseDate,
-      failure_description,        // Frontend sends this
-      failure_description, // Backend originally expected this
-      failure_mode, 
-      serial_number,       // Frontend sends singular
-      serial_numbers,      // Backend expected plural
-      rootCause,
-      correctiveAction,
-      resolution,
-      priority,
+    const {
+      part_type_id,
+      claim_number,
+      customer_name,
+      customer_contact,
+      customer_email,
+      customer_phone,
+      quantity,
+      failure_date,
+      failure_description,
+      failure_mode,
+      serial_numbers,
       status,
-      cost,
-      images,
-      attachments,
       notes
     } = req.body;
-    
-    // Use failure_description or failure_description
-    const failureDesc = failure_description || failure_description;
-    
-    if (!failureDesc) {
+
+    if (!failure_description || !String(failure_description).trim()) {
       return res.status(400).json({
         error: 'Validation failed',
         message: 'Description is required'
@@ -85,18 +71,18 @@ router.post('/', async (req, res) => {
         failure_mode, serial_numbers, status, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, 
-        part_type_id || null, 
-        claim_number || null, 
-        customer_name || '', 
-        customer_contact || '', 
+        id,
+        part_type_id || null,
+        claim_number || null,
+        customer_name || '',
+        customer_contact || '',
         customer_email || '',
-        customer_phone || '', 
-        quantity || 1, 
-        failureDate || null, 
-        failureDesc,
+        customer_phone || '',
+        quantity || 1,
+        failure_date || null,
+        failure_description,
         failure_mode || '',
-        serial_number || serial_numbers || '', 
+        serial_numbers || '',
         status || 'open',
         req.user.userId
       ]
@@ -110,25 +96,57 @@ router.post('/', async (req, res) => {
   }
 });
 
-
-// Update warranty claim
+// Update warranty claim (snake_case request body)
 router.put('/:id', async (req, res) => {
   try {
-    const { status, resolution, credit_amount, replacement_shipped, assigned_to } = req.body;
-    
-    const closedAt = status === 'closed' ? new Date() : null;
-    
+    const {
+      status,
+      resolution,
+      credit_amount,
+      replacement_shipped,
+      assigned_to
+    } = req.body;
+
+    const closed_at = status === 'closed' ? new Date() : null;
+
     await pool.query(
-      `UPDATE warranty_claims SET status = ?, resolution = ?, credit_amount = ?, 
-       replacement_shipped = ?, assigned_to = ?, closed_at = ?
+      `UPDATE warranty_claims 
+       SET status = COALESCE(?, status),
+           resolution = COALESCE(?, resolution),
+           credit_amount = COALESCE(?, credit_amount),
+           replacement_shipped = COALESCE(?, replacement_shipped),
+           assigned_to = COALESCE(?, assigned_to),
+           closed_at = COALESCE(?, closed_at)
        WHERE id = ?`,
-      [status, resolution || '', credit_amount || null, replacement_shipped || false, assigned_to || null, closedAt, req.params.id]
+      [
+        status,
+        resolution || '',
+        credit_amount || null,
+        replacement_shipped || false,
+        assigned_to || null,
+        closed_at,
+        req.params.id
+      ]
     );
 
     const [updated] = await pool.query('SELECT * FROM warranty_claims WHERE id = ?', [req.params.id]);
+    if (updated.length === 0) {
+      return res.status(404).json({ error: 'Warranty claim not found' });
+    }
     res.json(updated[0]);
   } catch (error) {
+    console.error('Update warranty claim error:', error);
     res.status(500).json({ error: 'Failed to update warranty claim' });
+  }
+});
+
+// Delete warranty claim
+router.delete('/:id', requireRole('admin'), async (req, res) => {
+  try {
+    await pool.query('DELETE FROM warranty_claims WHERE id = ?', [req.params.id]);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete warranty claim' });
   }
 });
 

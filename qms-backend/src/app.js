@@ -10,11 +10,14 @@ import authRoutes from './routes/auth.js';
 import partTypeRoutes from './routes/partTypes.js';
 import shipmentRoutes from './routes/shipments.js';
 import inspectionRoutes from './routes/inspections.js';
+import inspectionPlanRoutes from './routes/inspectionPlans.js';
 import quarantineRoutes from './routes/quarantine.js';
 import warrantyRoutes from './routes/warranty.js';
 import gageRoutes from './routes/gages.js';
 import userRoutes from './routes/users.js';
-import inspectionPlanRoutes from './routes/inspectionPlans.js';
+// Note: drawings and notifications routes need to be created if needed
+// import drawingsRoutes from './routes/drawings.js';
+// import notificationsRoutes from './routes/notifications.js';
 
 // Create Express app
 const app = express();
@@ -24,7 +27,6 @@ const app = express();
 // ==========================================
 
 // Enable CORS (Cross-Origin Resource Sharing)
-// This allows your frontend to make requests to this API
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
@@ -48,15 +50,15 @@ app.use((req, res, next) => {
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ 
-      status: 'ok', 
+    res.json({
+      status: 'ok',
       timestamp: new Date().toISOString(),
       database: 'connected',
       environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
-    res.status(500).json({ 
-      status: 'error', 
+    res.status(500).json({
+      status: 'error',
       timestamp: new Date().toISOString(),
       database: 'disconnected',
       error: error.message
@@ -69,11 +71,16 @@ app.use('/api/auth', authRoutes);
 app.use('/api/part-types', partTypeRoutes);
 app.use('/api/shipments', shipmentRoutes);
 app.use('/api/inspections', inspectionRoutes);
+app.use('/api/inspection-plans', inspectionPlanRoutes);
 app.use('/api/quarantine', quarantineRoutes);
 app.use('/api/warranty', warrantyRoutes);
 app.use('/api/gages', gageRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/inspection-plans', inspectionPlanRoutes);
+
+// Placeholder routes for drawings and notifications
+// These return empty arrays until proper routes are implemented
+app.get('/api/drawings', (req, res) => res.json([]));
+app.get('/api/notifications', (req, res) => res.json([]));
 
 // ==========================================
 // ERROR HANDLING
@@ -81,7 +88,7 @@ app.use('/api/inspection-plans', inspectionPlanRoutes);
 
 // 404 handler - route not found
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Not found',
     message: `The endpoint ${req.method} ${req.path} does not exist`,
     availableEndpoints: [
@@ -92,10 +99,13 @@ app.use((req, res) => {
       'GET  /api/part-types',
       'GET  /api/shipments',
       'GET  /api/inspections',
+      'GET  /api/inspection-plans',
       'GET  /api/quarantine',
       'GET  /api/warranty',
       'GET  /api/gages',
-      'GET  /api/users'
+      'GET  /api/users',
+      'GET  /api/drawings',
+      'GET  /api/notifications'
     ]
   });
 });
@@ -103,7 +113,7 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
@@ -118,7 +128,7 @@ const PORT = process.env.PORT || 3000;
 const startServer = async () => {
   // Test database connection first
   const dbConnected = await testConnection();
-  
+
   if (!dbConnected) {
     console.error('\n⚠️  Warning: Could not connect to database');
     console.error('    Make sure MySQL is running: docker start qms-mysql\n');

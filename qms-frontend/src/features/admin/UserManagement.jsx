@@ -1,9 +1,14 @@
 // src/features/admin/UserManagement.jsx
-// MIGRATED FROM FIREBASE TO REST API
+// SNAKE_CASE NORMALIZED
 
 import React, { useState, useContext } from 'react';
 import { AppContext, ROLES, TIERS } from '../../context/AppContext';
 import { usersApi } from '../../services/api';
+
+// Helpers to get values from either snake_case or camelCase responses
+const getIsActive = (u) => u.is_active !== undefined ? u.is_active : (u.isActive !== false);
+const getDisplayName = (u) => u.display_name || u.displayName || '';
+const getCreatedAt = (u) => u.created_at || u.createdAt || null;
 
 export default function UserManagement() {
   const { allUsers, refreshData, user: currentUser } = useContext(AppContext);
@@ -16,10 +21,19 @@ export default function UserManagement() {
     try {
       setLoading(true);
       setError(null);
-      
-      await usersApi.update(userId, updates);
+
+      // Send snake_case payload to backend
+      const payload = {};
+      if (updates.display_name !== undefined) payload.display_name = updates.display_name;
+      if (updates.displayName !== undefined) payload.display_name = updates.displayName;
+      if (updates.role !== undefined) payload.role = updates.role;
+      if (updates.tier !== undefined) payload.tier = updates.tier;
+      if (updates.is_active !== undefined) payload.is_active = updates.is_active;
+      if (updates.isActive !== undefined) payload.is_active = updates.isActive;
+
+      await usersApi.update(userId, payload);
       await refreshData();
-      
+
       setSuccess('User updated successfully');
       setEditingUser(null);
       setTimeout(() => setSuccess(null), 3000);
@@ -38,8 +52,9 @@ export default function UserManagement() {
       return;
     }
 
+    const currentActive = getIsActive(userToToggle);
     await handleUpdateUser(userToToggle.id, {
-      isActive: !userToToggle.isActive
+      is_active: !currentActive
     });
   };
 
@@ -117,101 +132,107 @@ export default function UserManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allUsers?.map((u) => (
-                    <tr key={u.id} className={u.isActive === false ? 'table-secondary' : ''}>
-                      <td>
-                        {u.email}
-                        {u.id === currentUser?.id && (
-                          <span className="badge bg-primary ms-2">You</span>
-                        )}
-                      </td>
-                      <td>{u.displayName || '-'}</td>
-                      <td>
-                        {editingUser?.id === u.id ? (
-                          <select
-                            className="form-select form-select-sm"
-                            value={editingUser.role}
-                            onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                            disabled={u.id === currentUser?.id}
+                  {allUsers?.map((u) => {
+                    const isActive = getIsActive(u);
+                    const displayName = getDisplayName(u);
+                    const createdAt = getCreatedAt(u);
+
+                    return (
+                      <tr key={u.id} className={!isActive ? 'table-secondary' : ''}>
+                        <td>
+                          {u.email}
+                          {u.id === currentUser?.id && (
+                            <span className="badge bg-primary ms-2">You</span>
+                          )}
+                        </td>
+                        <td>{displayName || '-'}</td>
+                        <td>
+                          {editingUser?.id === u.id ? (
+                            <select
+                              className="form-select form-select-sm"
+                              value={editingUser.role}
+                              onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                              disabled={u.id === currentUser?.id}
+                            >
+                              {Object.values(ROLES).map((role) => (
+                                <option key={role} value={role}>
+                                  {role.replace('_', ' ').toUpperCase()}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={`badge bg-${getRoleBadgeColor(u.role)}`}>
+                              {u.role?.replace('_', ' ').toUpperCase() || 'INSPECTOR'}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {editingUser?.id === u.id ? (
+                            <select
+                              className="form-select form-select-sm"
+                              value={editingUser.tier || TIERS.FREE}
+                              onChange={(e) => setEditingUser({ ...editingUser, tier: e.target.value })}
+                            >
+                              {Object.values(TIERS).map((tier) => (
+                                <option key={tier} value={tier}>
+                                  {tier.toUpperCase()}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={`badge bg-${getTierBadgeColor(u.tier)}`}>
+                              {(u.tier || TIERS.FREE).toUpperCase()}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge bg-${isActive ? 'success' : 'danger'}`}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => handleToggleActive(u)}
+                            title={u.id === currentUser?.id ? 'Cannot deactivate yourself' : 'Click to toggle'}
                           >
-                            {Object.values(ROLES).map((role) => (
-                              <option key={role} value={role}>
-                                {role.replace('_', ' ').toUpperCase()}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className={`badge bg-${getRoleBadgeColor(u.role)}`}>
-                            {u.role?.replace('_', ' ').toUpperCase() || 'INSPECTOR'}
+                            {isActive ? 'Active' : 'Inactive'}
                           </span>
-                        )}
-                      </td>
-                      <td>
-                        {editingUser?.id === u.id ? (
-                          <select
-                            className="form-select form-select-sm"
-                            value={editingUser.tier || TIERS.FREE}
-                            onChange={(e) => setEditingUser({ ...editingUser, tier: e.target.value })}
-                          >
-                            {Object.values(TIERS).map((tier) => (
-                              <option key={tier} value={tier}>
-                                {tier.toUpperCase()}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className={`badge bg-${getTierBadgeColor(u.tier)}`}>
-                            {(u.tier || TIERS.FREE).toUpperCase()}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          className={`badge bg-${u.isActive !== false ? 'success' : 'danger'}`}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => handleToggleActive(u)}
-                          title={u.id === currentUser?.id ? 'Cannot deactivate yourself' : 'Click to toggle'}
-                        >
-                          {u.isActive !== false ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td>
-                        <small className="text-muted">
-                          {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}
-                        </small>
-                      </td>
-                      <td>
-                        {editingUser?.id === u.id ? (
-                          <div className="btn-group btn-group-sm">
+                        </td>
+                        <td>
+                          <small className="text-muted">
+                            {createdAt ? new Date(createdAt).toLocaleDateString() : '-'}
+                          </small>
+                        </td>
+                        <td>
+                          {editingUser?.id === u.id ? (
+                            <div className="btn-group btn-group-sm">
+                              <button
+                                className="btn btn-success"
+                                onClick={() => handleUpdateUser(u.id, {
+                                  role: editingUser.role,
+                                  tier: editingUser.tier
+                                })}
+                                disabled={loading}
+                              >
+                                {loading ? '...' : 'Save'}
+                              </button>
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => setEditingUser(null)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              className="btn btn-success"
-                              onClick={() => handleUpdateUser(u.id, {
-                                role: editingUser.role,
-                                tier: editingUser.tier
-                              })}
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => setEditingUser({ ...u })}
                               disabled={loading}
                             >
-                              {loading ? '...' : 'Save'}
+                              Edit
                             </button>
-                            <button
-                              className="btn btn-secondary"
-                              onClick={() => setEditingUser(null)}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => setEditingUser({ ...u })}
-                            disabled={loading}
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

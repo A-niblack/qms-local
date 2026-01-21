@@ -1,9 +1,13 @@
 ﻿// src/features/inspections/NewShipmentModal.jsx
-// MIGRATED FROM FIREBASE TO REST API
+// SNAKE_CASE NORMALIZED
 
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { shipmentsApi } from '../../services/api';
+
+// Helper to get values from either snake_case or camelCase
+const getPartNumber = (pt) => pt.part_number || pt.partNumber || '';
+const getIsActive = (pt) => pt.is_active !== undefined ? pt.is_active : (pt.isActive !== false);
 
 export default function NewShipmentModal({ onClose, onSuccess }) {
   const { partTypes, user } = useContext(AppContext);
@@ -20,8 +24,8 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
     notes: ''
   });
 
-  // Filter only active part types
-  const activePartTypes = partTypes?.filter(pt => pt.isActive !== false) || [];
+  // Filter only active part types (handle both snake_case and camelCase)
+  const activePartTypes = partTypes?.filter(pt => getIsActive(pt)) || [];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,11 +45,14 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
       setError(null);
 
       const shipmentData = {
-        ...formData,
+        part_type_id: formData.part_type_id,
+        shipment_number: formData.shipment_number,
+        po_number: formData.po_number,
         quantity: formData.quantity ? parseInt(formData.quantity, 10) : null,
-        status: 'pending',
-        created_by: user?.id,
-        created_at: new Date().toISOString()
+        supplier: formData.supplier,
+        received_date: formData.received_date || null,
+        notes: formData.notes,
+        status: 'pending'
       };
 
       await shipmentsApi.create(shipmentData);
@@ -98,7 +105,7 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
                   <option value="">Select Part Type...</option>
                   {activePartTypes.map((pt) => (
                     <option key={pt.id} value={pt.id}>
-                      {pt.partNumber} - {pt.description || 'No description'}
+                      {getPartNumber(pt)} - {pt.description || 'No description'}
                     </option>
                   ))}
                 </select>

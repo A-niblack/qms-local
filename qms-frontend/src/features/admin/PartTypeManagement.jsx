@@ -1,5 +1,6 @@
 // src/features/admin/PartTypeManagement.jsx
 // MIGRATED FROM FIREBASE TO REST API
+// UPDATED: snake_case payload alignment with backend
 
 import React, { useState, useContext, useRef } from 'react';
 import { AppContext } from '../../context/AppContext';
@@ -16,29 +17,32 @@ export default function PartTypeManagement() {
   const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Form state uses snake_case to match backend
   const [formData, setFormData] = useState({
-    partNumber: '',
+    part_number: '',
+    name: '',
     description: '',
     supplier: '',
     category: '',
-    drawingNumber: '',
+    drawing_number: '',
     revision: '',
-    isActive: true,
-    drawingUrl: '',
-    drawingFileName: ''
+    is_active: true,
+    drawing_url: '',
+    drawing_file_name: ''
   });
 
   const resetForm = () => {
     setFormData({
-      partNumber: '',
+      part_number: '',
+      name: '',
       description: '',
       supplier: '',
       category: '',
-      drawingNumber: '',
+      drawing_number: '',
       revision: '',
-      isActive: true,
-      drawingUrl: '',
-      drawingFileName: ''
+      is_active: true,
+      drawing_url: '',
+      drawing_file_name: ''
     });
     setEditingPartType(null);
     setError(null);
@@ -47,16 +51,18 @@ export default function PartTypeManagement() {
   const handleOpenModal = (partType = null) => {
     if (partType) {
       setEditingPartType(partType);
+      // Map from backend snake_case response to form state
       setFormData({
-        partNumber: partType.partNumber || '',
+        part_number: partType.part_number || partType.partNumber || '',
+        name: partType.name || '',
         description: partType.description || '',
         supplier: partType.supplier || '',
         category: partType.category || '',
-        drawingNumber: partType.drawingNumber || '',
+        drawing_number: partType.drawing_number || partType.drawingNumber || '',
         revision: partType.revision || '',
-        isActive: partType.isActive !== false,
-        drawingUrl: partType.drawingUrl || '',
-        drawingFileName: partType.drawingFileName || ''
+        is_active: partType.is_active !== undefined ? partType.is_active : (partType.isActive !== false),
+        drawing_url: partType.drawing_url || partType.drawingUrl || '',
+        drawing_file_name: partType.drawing_file_name || partType.drawingFileName || ''
       });
     } else {
       resetForm();
@@ -92,8 +98,8 @@ export default function PartTypeManagement() {
       
       setFormData(prev => ({
         ...prev,
-        drawingUrl: result.url,
-        drawingFileName: file.name
+        drawing_url: result.url,
+        drawing_file_name: file.name
       }));
       setUploadProgress(null);
       setError(null);
@@ -107,7 +113,7 @@ export default function PartTypeManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.partNumber.trim()) {
+    if (!formData.part_number.trim()) {
       setError('Part number is required');
       return;
     }
@@ -116,15 +122,25 @@ export default function PartTypeManagement() {
       setLoading(true);
       setError(null);
 
+      // Build snake_case payload for backend
       const dataToSave = {
-        ...formData,
-        updatedBy: user?.id
+        part_number: formData.part_number,
+        name: formData.name || formData.part_number, // fallback to part_number if name empty
+        description: formData.description,
+        supplier: formData.supplier,
+        category: formData.category,
+        drawing_number: formData.drawing_number,
+        revision: formData.revision,
+        is_active: formData.is_active,
+        drawing_url: formData.drawing_url,
+        drawing_file_name: formData.drawing_file_name,
+        updated_by: user?.id
       };
 
       if (editingPartType) {
         await partTypesApi.update(editingPartType.id, dataToSave);
       } else {
-        dataToSave.createdBy = user?.id;
+        dataToSave.created_by = user?.id;
         await partTypesApi.create(dataToSave);
       }
 
@@ -139,7 +155,8 @@ export default function PartTypeManagement() {
   };
 
   const handleDelete = async (partType) => {
-    if (!window.confirm(`Delete part type "${partType.partNumber}"? This cannot be undone.`)) {
+    const partNum = partType.part_number || partType.partNumber;
+    if (!window.confirm(`Delete part type "${partNum}"? This cannot be undone.`)) {
       return;
     }
 
@@ -157,8 +174,13 @@ export default function PartTypeManagement() {
 
   const handleToggleActive = async (partType) => {
     try {
+      const currentActive = partType.is_active !== undefined ? partType.is_active : partType.isActive;
       await partTypesApi.update(partType.id, {
-        isActive: !partType.isActive
+        part_number: partType.part_number || partType.partNumber,
+        name: partType.name,
+        description: partType.description,
+        category: partType.category,
+        is_active: !currentActive
       });
       await refreshData();
     } catch (err) {
@@ -166,6 +188,11 @@ export default function PartTypeManagement() {
       setError(err.message || 'Failed to update part type');
     }
   };
+
+  // Helper to get display values (handles both snake_case and camelCase from backend)
+  const getPartNumber = (pt) => pt.part_number || pt.partNumber || '';
+  const getIsActive = (pt) => pt.is_active !== undefined ? pt.is_active : (pt.isActive !== false);
+  const getDrawingUrl = (pt) => pt.drawing_url || pt.drawingUrl || '';
 
   // If showing characteristics for a part type
   if (showCharacteristics) {
@@ -225,18 +252,18 @@ export default function PartTypeManagement() {
                 </thead>
                 <tbody>
                   {partTypes?.map((pt) => (
-                    <tr key={pt.id} className={pt.isActive === false ? 'table-secondary' : ''}>
+                    <tr key={pt.id} className={!getIsActive(pt) ? 'table-secondary' : ''}>
                       <td>
-                        <strong>{pt.partNumber}</strong>
+                        <strong>{getPartNumber(pt)}</strong>
                         {pt.revision && <small className="text-muted"> Rev {pt.revision}</small>}
                       </td>
                       <td>{pt.description || '-'}</td>
                       <td>{pt.supplier || '-'}</td>
                       <td>{pt.category || '-'}</td>
                       <td>
-                        {pt.drawingUrl ? (
+                        {getDrawingUrl(pt) ? (
                           <a
-                            href={pt.drawingUrl}
+                            href={getDrawingUrl(pt)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-sm btn-outline-primary"
@@ -249,11 +276,11 @@ export default function PartTypeManagement() {
                       </td>
                       <td>
                         <span
-                          className={`badge bg-${pt.isActive !== false ? 'success' : 'secondary'}`}
+                          className={`badge bg-${getIsActive(pt) ? 'success' : 'secondary'}`}
                           style={{ cursor: 'pointer' }}
                           onClick={() => handleToggleActive(pt)}
                         >
-                          {pt.isActive !== false ? 'Active' : 'Inactive'}
+                          {getIsActive(pt) ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td>
@@ -313,11 +340,24 @@ export default function PartTypeManagement() {
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.partNumber}
-                        onChange={(e) => setFormData({ ...formData, partNumber: e.target.value })}
+                        value={formData.part_number}
+                        onChange={(e) => setFormData({ ...formData, part_number: e.target.value })}
                         required
                       />
                     </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Name</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Defaults to part number if empty"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row">
                     <div className="col-md-6 mb-3">
                       <label className="form-label">Revision</label>
                       <input
@@ -325,6 +365,15 @@ export default function PartTypeManagement() {
                         className="form-control"
                         value={formData.revision}
                         onChange={(e) => setFormData({ ...formData, revision: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Category</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       />
                     </div>
                   </div>
@@ -350,44 +399,33 @@ export default function PartTypeManagement() {
                       />
                     </div>
                     <div className="col-md-6 mb-3">
-                      <label className="form-label">Category</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
                       <label className="form-label">Drawing Number</label>
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.drawingNumber}
-                        onChange={(e) => setFormData({ ...formData, drawingNumber: e.target.value })}
+                        value={formData.drawing_number}
+                        onChange={(e) => setFormData({ ...formData, drawing_number: e.target.value })}
                       />
                     </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Drawing File</label>
-                      <input
-                        type="file"
-                        className="form-control"
-                        ref={fileInputRef}
-                        onChange={handleFileUpload}
-                        accept=".pdf,.png,.jpg,.jpeg"
-                      />
-                      {uploadProgress && (
-                        <small className="text-muted">{uploadProgress}</small>
-                      )}
-                      {formData.drawingFileName && (
-                        <small className="text-success d-block">
-                          Uploaded: {formData.drawingFileName}
-                        </small>
-                      )}
-                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Drawing File</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept=".pdf,.png,.jpg,.jpeg"
+                    />
+                    {uploadProgress && (
+                      <small className="text-muted">{uploadProgress}</small>
+                    )}
+                    {formData.drawing_file_name && (
+                      <small className="text-success d-block">
+                        Uploaded: {formData.drawing_file_name}
+                      </small>
+                    )}
                   </div>
 
                   <div className="form-check">
@@ -395,8 +433,8 @@ export default function PartTypeManagement() {
                       type="checkbox"
                       className="form-check-input"
                       id="isActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                     />
                     <label className="form-check-label" htmlFor="isActive">
                       Active
