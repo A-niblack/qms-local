@@ -1,18 +1,18 @@
 // src/features/quarantine/QuarantineDetailModal.jsx
-// MIGRATED FROM FIREBASE TO REST API
+// SNAKE_CASE NORMALIZED (REST API)
 
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { quarantineApi } from '../../services/api';
 
 export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
-  const { partTypes, user } = useContext(AppContext);
+  const { partTypes } = useContext(AppContext);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [disposition, setDisposition] = useState({
-    decision: '',
-    notes: ''
-  });
+
+  // local notes field for final disposition actions
+  const [disposition_notes, setDispositionNotes] = useState('');
 
   const statusFlow = [
     { value: 'pending', label: 'Pending', next: ['under-review'] },
@@ -23,13 +23,25 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
     { value: 'returned', label: 'Returned to Supplier', next: [] }
   ];
 
-  const getPartTypeName = (partTypeId) => {
-    const pt = partTypes?.find(p => p.id === partTypeId);
-    return pt ? pt.partNumber : 'Unknown';
+  const getPartTypeName = (part_type_id) => {
+    const pt = partTypes?.find(p => p.id === part_type_id);
+    return pt ? pt.part_number || pt.partNumber || pt.name : 'Unknown';
   };
 
   const getCurrentStatusInfo = () => {
     return statusFlow.find(s => s.value === batch.status) || statusFlow[0];
+  };
+
+  const getStatusBadgeColor = (status) => {
+    const colors = {
+      pending: 'warning',
+      'under-review': 'info',
+      disposition: 'primary',
+      released: 'success',
+      scrapped: 'danger',
+      returned: 'secondary'
+    };
+    return colors[status] || 'secondary';
   };
 
   const handleStatusChange = async (newStatus) => {
@@ -37,22 +49,15 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
       setLoading(true);
       setError(null);
 
+      // Snake_case-only payload
       const updateData = {
-        status: newStatus,
-        updatedBy: user?.id,
-        updatedByName: user?.displayName || user?.email,
-        updatedAt: new Date().toISOString()
+        status: newStatus
       };
 
-      // Add disposition info if applicable
+      // If final disposition action, also set disposition fields
       if (['released', 'scrapped', 'returned'].includes(newStatus)) {
-        updateData.disposition = {
-          decision: newStatus,
-          notes: disposition.notes,
-          decidedBy: user?.id,
-          decidedByName: user?.displayName || user?.email,
-          decidedAt: new Date().toISOString()
-        };
+        updateData.disposition = newStatus;
+        updateData.disposition_notes = disposition_notes || '';
       }
 
       await quarantineApi.update(batch.id, updateData);
@@ -68,17 +73,12 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
   const statusInfo = getCurrentStatusInfo();
   const canProgress = statusInfo.next.length > 0;
 
-  const getStatusBadgeColor = (status) => {
-    const colors = {
-      pending: 'warning',
-      'under-review': 'info',
-      disposition: 'primary',
-      released: 'success',
-      scrapped: 'danger',
-      returned: 'secondary'
-    };
-    return colors[status] || 'secondary';
-  };
+  const part_type_id =
+    batch.part_type_id ??
+    // if your backend doesn't return part_type_id on quarantine batches,
+    // you may only have shipment join fields or none; keep fallback
+    batch?.shipment_part_type_id ??
+    '';
 
   return (
     <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
@@ -90,10 +90,9 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
             </h5>
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
+
           <div className="modal-body">
-            {error && (
-              <div className="alert alert-danger">{error}</div>
-            )}
+            {error && <div className="alert alert-danger">{error}</div>}
 
             {/* Status Progress */}
             <div className="mb-4">
@@ -103,21 +102,23 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
                   {statusInfo.label}
                 </span>
               </div>
-              
-              {/* Progress Bar */}
+
               <div className="progress" style={{ height: '25px' }}>
                 {statusFlow.slice(0, 4).map((s, idx) => {
                   const currentIdx = statusFlow.findIndex(sf => sf.value === batch.status);
-                  const isComplete = idx < currentIdx || ['released', 'scrapped', 'returned'].includes(batch.status);
+                  const isComplete =
+                    idx < currentIdx || ['released', 'scrapped', 'returned'].includes(batch.status);
                   const isCurrent = s.value === batch.status;
-                  
+
                   return (
                     <div
                       key={s.value}
                       className={`progress-bar ${
-                        isComplete ? 'bg-success' : 
-                        isCurrent ? `bg-${getStatusBadgeColor(s.value)}` : 
-                        'bg-light text-dark'
+                        isComplete
+                          ? 'bg-success'
+                          : isCurrent
+                            ? `bg-${getStatusBadgeColor(s.value)}`
+                            : 'bg-light text-dark'
                       }`}
                       style={{ width: '25%' }}
                     >
@@ -135,7 +136,7 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <small className="text-muted">Part Type</small>
-                    <div><strong>{getPartTypeName(batch.partTypeId)}</strong></div>
+                    <div><strong>{getPartTypeName(part_type_id)}</strong></div>
                   </div>
                   <div className="col-md-6 mb-3">
                     <small className="text-muted">Quantity</small>
@@ -148,9 +149,13 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
                   <div className="col-md-6 mb-3">
                     <small className="text-muted">Created</small>
                     <div>
-                      {batch.createdAt ? new Date(batch.createdAt).toLocaleString() : '-'}
-                      <br />
-                      <small className="text-muted">by {batch.createdByName || 'Unknown'}</small>
+                      {batch.created_at ? new Date(batch.created_at).toLocaleString() : '-'}
+                      {batch.created_by_name && (
+                        <>
+                          <br />
+                          <small className="text-muted">by {batch.created_by_name}</small>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -169,8 +174,8 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
               </div>
             </div>
 
-            {/* Disposition Info (if exists) */}
-            {batch.disposition && (
+            {/* Disposition fields if already decided (snake_case from DB) */}
+            {(batch.disposition || batch.disposition_notes) && (
               <div className="card mb-4">
                 <div className="card-header bg-light">Disposition Decision</div>
                 <div className="card-body">
@@ -178,35 +183,31 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
                     <div className="col-md-6">
                       <small className="text-muted">Decision</small>
                       <div>
-                        <span className={`badge bg-${getStatusBadgeColor(batch.disposition.decision)}`}>
-                          {batch.disposition.decision?.toUpperCase()}
+                        <span className={`badge bg-${getStatusBadgeColor(batch.disposition)}`}>
+                          {(batch.disposition || '').toUpperCase()}
                         </span>
                       </div>
                     </div>
                     <div className="col-md-6">
-                      <small className="text-muted">Decided By</small>
+                      <small className="text-muted">Decided At</small>
                       <div>
-                        {batch.disposition.decidedByName || 'Unknown'}
-                        <br />
-                        <small className="text-muted">
-                          {batch.disposition.decidedAt 
-                            ? new Date(batch.disposition.decidedAt).toLocaleString() 
-                            : ''}
-                        </small>
+                        {batch.disposition_date
+                          ? new Date(batch.disposition_date).toLocaleString()
+                          : '—'}
                       </div>
                     </div>
                   </div>
-                  {batch.disposition.notes && (
+                  {batch.disposition_notes && (
                     <div className="mt-3">
                       <small className="text-muted">Disposition Notes</small>
-                      <div className="p-2 bg-light rounded">{batch.disposition.notes}</div>
+                      <div className="p-2 bg-light rounded">{batch.disposition_notes}</div>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Action Buttons */}
+            {/* Actions */}
             {canProgress && (
               <div className="card">
                 <div className="card-header">Actions</div>
@@ -218,11 +219,12 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
                         <textarea
                           className="form-control"
                           rows="2"
-                          value={disposition.notes}
-                          onChange={(e) => setDisposition({ ...disposition, notes: e.target.value })}
+                          value={disposition_notes}
+                          onChange={(e) => setDispositionNotes(e.target.value)}
                           placeholder="Enter notes about the disposition decision..."
                         />
                       </div>
+
                       <div className="d-flex gap-2">
                         <button
                           className="btn btn-success"
@@ -268,6 +270,7 @@ export default function QuarantineDetailModal({ batch, onClose, onUpdate }) {
               </div>
             )}
           </div>
+
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Close

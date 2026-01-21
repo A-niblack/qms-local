@@ -1,7 +1,7 @@
 ﻿import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
-import { authenticateToken, requireRole, getTierLimits, TIER_FEATURES } from '../middleware/auth.js';
+import { authenticateToken, requireRole, getTierLimits } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const [partTypes] = await pool.query(`
-      SELECT 
+      SELECT
         pt.*,
         u.display_name as created_by_name,
         (SELECT COUNT(*) FROM inspection_plans WHERE part_type_id = pt.id) as plan_count,
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN users u ON pt.created_by = u.id
       ORDER BY pt.name
     `);
-    
+
     res.json(partTypes);
   } catch (error) {
     console.error('Get part types error:', error);
@@ -38,14 +38,17 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const [partTypes] = await pool.query(`
-      SELECT 
+    const [partTypes] = await pool.query(
+      `
+      SELECT
         pt.*,
         u.display_name as created_by_name
       FROM part_types pt
       LEFT JOIN users u ON pt.created_by = u.id
       WHERE pt.id = ?
-    `, [req.params.id]);
+      `,
+      [req.params.id]
+    );
 
     if (partTypes.length === 0) {
       return res.status(404).json({ error: 'Part type not found' });
@@ -61,16 +64,28 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/part-types
  * Create new part type (admin only)
+ * Snake_case request body
  */
 router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
   try {
-    const { part_number, name, failure_description, category, supplier, revision, drawing_number, drawing_url, drawing_file_name, is_active } = req.body;
+    const {
+      part_number,
+      name,
+      description,
+      category,
+      // present in some UIs but NOT in your schema migration; ignore safely
+      supplier,
+      revision,
+      drawing_number,
+      drawing_url,
+      drawing_file_name,
+      is_active
+    } = req.body;
 
-    // Validation - only part_number is truly required
     if (!part_number) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Validation failed',
-        message: 'Part number is required' 
+        message: 'Part number is required'
       });
     }
 
@@ -88,7 +103,7 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
         upgradeRequired: true
       });
     }
-    // Use part_number as name if name not provided
+
     const partName = name || part_number;
 
     // Check for duplicate part number
@@ -104,18 +119,25 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
       });
     }
 
-    // Create part type
     const id = uuidv4();
-    
-     await pool.query(
-      `INSERT INTO part_types (id, part_number, name, failure_description, category, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, part_number, partName, failure_description || '', category || '', req.user.userId]
+
+    await pool.query(
+      `
+      INSERT INTO part_types (id, part_number, name, description, category, is_active, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        id,
+        part_number,
+        partName,
+        description || '',
+        category || '',
+        is_active !== false,
+        req.user.userId
+      ]
     );
 
-    // Fetch and return the created part type
     const [newPartType] = await pool.query('SELECT * FROM part_types WHERE id = ?', [id]);
-    
     res.status(201).json(newPartType[0]);
   } catch (error) {
     console.error('Create part type error:', error);
@@ -126,29 +148,38 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
 /**
  * PUT /api/part-types/:id
  * Update part type (admin only)
+ * Snake_case request body
  */
 router.put('/:id', requireRole('admin'), async (req, res) => {
   try {
-    const { part_number, name, failure_description, category, is_active } = req.body;
+    const { part_number, name, description, category, is_active } = req.body;
 
-    // Check if part type exists
     const [existing] = await pool.query('SELECT id FROM part_types WHERE id = ?', [req.params.id]);
-    
     if (existing.length === 0) {
       return res.status(404).json({ error: 'Part type not found' });
     }
 
-    // Update
     await pool.query(
-      `UPDATE part_types 
-       SET part_number = ?, name = ?, failure_description = ?, category = ?, is_active = ?
-       WHERE id = ?`,
-      [part_number, name, failure_description || '', category || '', is_active !== false, req.params.id]
+      `
+      UPDATE part_types
+      SET part_number = ?,
+          name = ?,
+          description = ?,
+          category = ?,
+          is_active = ?
+      WHERE id = ?
+      `,
+      [
+        part_number,
+        name,
+        description || '',
+        category || '',
+        is_active !== false,
+        req.params.id
+      ]
     );
 
-    // Fetch and return updated part type
     const [updated] = await pool.query('SELECT * FROM part_types WHERE id = ?', [req.params.id]);
-    
     res.json(updated[0]);
   } catch (error) {
     console.error('Update part type error:', error);
@@ -162,7 +193,6 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
  */
 router.delete('/:id', requireRole('admin'), async (req, res) => {
   try {
-    // Check for related records
     const [relatedShipments] = await pool.query(
       'SELECT COUNT(*) as count FROM shipments WHERE part_type_id = ?',
       [req.params.id]
@@ -176,7 +206,6 @@ router.delete('/:id', requireRole('admin'), async (req, res) => {
     }
 
     await pool.query('DELETE FROM part_types WHERE id = ?', [req.params.id]);
-    
     res.status(204).send();
   } catch (error) {
     console.error('Delete part type error:', error);

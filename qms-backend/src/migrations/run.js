@@ -122,19 +122,29 @@ CREATE TABLE IF NOT EXISTS quarantine_batches (
   quantity INT NOT NULL,
   reason TEXT NOT NULL,
   defect_type VARCHAR(255),
-  disposition ENUM('pending', 'rework', 'scrap', 'return_to_supplier', 'use_as_is', 'sort') DEFAULT 'pending',
+
+  -- NEW: workflow status to match frontend/backend
+  status ENUM('pending', 'under-review', 'disposition', 'released', 'scrapped', 'returned') DEFAULT 'pending',
+
+  -- Keep these fields for decision capture (used when status becomes final)
+  disposition ENUM('released', 'scrapped', 'returned') NULL,
   disposition_notes TEXT,
   disposition_by VARCHAR(36),
   disposition_date TIMESTAMP NULL,
+
   location VARCHAR(255),
+  notes TEXT,
+
   created_by VARCHAR(36),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
   FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
   FOREIGN KEY (inspection_id) REFERENCES inspections(id) ON DELETE SET NULL,
   FOREIGN KEY (disposition_by) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
+
 
 -- =============================================
 -- ENGINEERING TASKS TABLE
@@ -303,6 +313,7 @@ CREATE INDEX idx_shipments_status ON shipments(status);
 CREATE INDEX idx_shipments_received_date ON shipments(received_date);
 CREATE INDEX idx_inspections_status ON inspections(status);
 CREATE INDEX idx_inspections_inspector ON inspections(inspector_id);
+CREATE INDEX idx_quarantine_status ON quarantine_batches(status);
 CREATE INDEX idx_quarantine_disposition ON quarantine_batches(disposition);
 CREATE INDEX idx_engineering_status ON engineering_tasks(status);
 CREATE INDEX idx_engineering_assigned ON engineering_tasks(assigned_to);

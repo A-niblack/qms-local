@@ -20,6 +20,7 @@
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
     "react-bootstrap": "^2.10.10",
+    "react-datepicker": "^9.1.0",
     "react-dom": "^19.1.1",
     "react-error-boundary": "^4.1.2",
     "recharts": "^3.2.1"

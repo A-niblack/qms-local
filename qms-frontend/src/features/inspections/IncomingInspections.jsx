@@ -1,24 +1,22 @@
 ﻿// src/features/inspections/IncomingInspections.jsx
-// MIGRATED FROM FIREBASE TO REST API
+// SNAKE_CASE + DB-ENUM SHIPMENT STATUS NORMALIZED
 
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../../context/AppContext';
-import { shipmentsApi, inspectionsApi } from '../../services/api';
+import { shipmentsApi } from '../../services/api';
 import NewShipmentModal from './NewShipmentModal';
 import CfqInspectionModal from './CfqInspectionModal';
 import EngineeringEvaluationModal from './EngineeringEvaluationModal';
 
 export default function IncomingInspections() {
-  const { 
-    shipments, 
-    inspections, 
-    partTypes, 
+  const {
+    shipments,
+    inspections,
+    partTypes,
     inspectionPlans,
-    quarantineBatches,
-    refreshData, 
-    user 
+    refreshData
   } = useContext(AppContext);
-  
+
   const [showNewShipment, setShowNewShipment] = useState(false);
   const [showCfqModal, setShowCfqModal] = useState(null);
   const [showEvalModal, setShowEvalModal] = useState(null);
@@ -27,50 +25,47 @@ export default function IncomingInspections() {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Get part type name by ID
-  const getPartTypeName = (partTypeId) => {
-    const pt = partTypes?.find(p => p.id === partTypeId);
-    return pt ? pt.partNumber : 'Unknown';
+  const getPartTypeName = (part_type_id) => {
+    const pt = partTypes?.find(p => p.id === part_type_id);
+    return pt ? (pt.part_number || pt.partNumber || 'Unknown') : 'Unknown';
   };
 
-  // Get inspection plan for a part type
-  const getInspectionPlan = (partTypeId) => {
-    return inspectionPlans?.find(p => p.partTypeId === partTypeId);
+  const getInspectionPlan = (part_type_id) => {
+    // Your inspectionPlans response may include part_type_id; normalize if needed
+    return inspectionPlans?.find(p => p.part_type_id === part_type_id) || null;
   };
 
-  // Get inspections for a shipment
-  const getShipmentInspections = (shipmentId) => {
-    return inspections?.filter(i => i.shipment_id === shipmentId) || [];
+  const getShipmentInspections = (shipment_id) => {
+    return inspections?.filter(i => i.shipment_id === shipment_id) || [];
   };
 
-  // Filter and search shipments
   const filteredShipments = shipments?.filter(s => {
-    // Status filter
     if (filter !== 'all' && s.status !== filter) return false;
-    
-    // Search filter
+
     if (searchTerm) {
-      const partType = partTypes?.find(p => p.id === s.part_type_id);
       const searchLower = searchTerm.toLowerCase();
+      const partType = partTypes?.find(p => p.id === s.part_type_id);
+
       return (
-        s.shipment_number?.toLowerCase().includes(searchLower) ||
-        s.po_number?.toLowerCase().includes(searchLower) ||
-        partType?.partNumber?.toLowerCase().includes(searchLower) ||
-        s.supplier?.toLowerCase().includes(searchLower)
+        String(s.shipment_number || '').toLowerCase().includes(searchLower) ||
+        String(s.po_number || '').toLowerCase().includes(searchLower) ||
+        String(partType?.part_number || partType?.partNumber || '').toLowerCase().includes(searchLower) ||
+        String(s.supplier || '').toLowerCase().includes(searchLower) ||
+        String(s.supplier_lot || '').toLowerCase().includes(searchLower)
       );
     }
+
     return true;
   }) || [];
 
-  // Sort by date (newest first)
   const sortedShipments = [...filteredShipments].sort((a, b) => {
-    const dateA = new Date(a.receivedDate || a.createdAt);
-    const dateB = new Date(b.receivedDate || b.createdAt);
+    const dateA = new Date(a.received_date || a.created_at || 0);
+    const dateB = new Date(b.received_date || b.created_at || 0);
     return dateB - dateA;
   });
 
   const handleDeleteShipment = async (shipment) => {
-    if (!window.confirm(`Delete shipment ${shipment.shipment_number}? This will also delete all associated inspections.`)) {
+    if (!window.confirm(`Delete shipment ${shipment.shipment_number || shipment.id}? This will also delete all associated inspections.`)) {
       return;
     }
 
@@ -90,10 +85,13 @@ export default function IncomingInspections() {
   const handleUpdateStatus = async (shipment, newStatus) => {
     try {
       setLoading(true);
-      await shipmentsApi.update(shipment.id, { 
+      setError(null);
+
+      await shipmentsApi.update(shipment.id, {
         status: newStatus,
         updated_at: new Date().toISOString()
       });
+
       await refreshData();
     } catch (err) {
       console.error('Update error:', err);
@@ -106,11 +104,10 @@ export default function IncomingInspections() {
   const getStatusBadge = (status) => {
     const colors = {
       pending: 'warning',
-      'in-progress': 'info',
-      completed: 'success',
-      failed: 'danger',
-      quarantined: 'dark',
-      released: 'primary'
+      in_inspection: 'info',
+      approved: 'success',
+      rejected: 'danger',
+      partial: 'primary'
     };
     return colors[status] || 'secondary';
   };
@@ -119,10 +116,7 @@ export default function IncomingInspections() {
     <div className="container-fluid py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Incoming Inspections</h2>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowNewShipment(true)}
-        >
+        <button className="btn btn-primary" onClick={() => setShowNewShipment(true)}>
           + New Shipment
         </button>
       </div>
@@ -142,26 +136,23 @@ export default function IncomingInspections() {
               <input
                 type="text"
                 className="form-control"
-                placeholder="Search by lot, PO, part number, supplier..."
+                placeholder="Search by shipment #, PO, part number, supplier..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+
             <div className="col-md-4">
-              <select
-                className="form-select"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-              >
+              <select className="form-select" value={filter} onChange={(e) => setFilter(e.target.value)}>
                 <option value="all">All Statuses</option>
                 <option value="pending">Pending</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-                <option value="quarantined">Quarantined</option>
-                <option value="released">Released</option>
+                <option value="in_inspection">In Inspection</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="partial">Partial</option>
               </select>
             </div>
+
             <div className="col-md-4 text-end">
               <span className="text-muted">
                 Showing {sortedShipments.length} of {shipments?.length || 0} shipments
@@ -173,51 +164,27 @@ export default function IncomingInspections() {
 
       {/* Summary Cards */}
       <div className="row mb-4">
-        <div className="col-md-2">
-          <div className="card bg-warning text-dark">
-            <div className="card-body text-center">
-              <h4>{shipments?.filter(s => s.status === 'pending').length || 0}</h4>
-              <small>Pending</small>
+        {[
+          ['pending', 'Pending', 'warning', (shipments || []).filter(s => s.status === 'pending').length],
+          ['in_inspection', 'In Inspection', 'info', (shipments || []).filter(s => s.status === 'in_inspection').length],
+          ['approved', 'Approved', 'success', (shipments || []).filter(s => s.status === 'approved').length],
+          ['rejected', 'Rejected', 'danger', (shipments || []).filter(s => s.status === 'rejected').length],
+          ['partial', 'Partial', 'primary', (shipments || []).filter(s => s.status === 'partial').length],
+        ].map(([key, label, color, count]) => (
+          <div className="col-md-2" key={key}>
+            <div className={`card bg-${color} ${color === 'warning' ? 'text-dark' : 'text-white'}`}>
+              <div className="card-body text-center">
+                <h4>{count}</h4>
+                <small>{label}</small>
+              </div>
             </div>
           </div>
-        </div>
+        ))}
         <div className="col-md-2">
-          <div className="card bg-info text-white">
+          <div className="card bg-secondary text-white" style={{ cursor: 'pointer' }} onClick={() => setFilter('all')}>
             <div className="card-body text-center">
-              <h4>{shipments?.filter(s => s.status === 'in-progress').length || 0}</h4>
-              <small>In Progress</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-success text-white">
-            <div className="card-body text-center">
-              <h4>{shipments?.filter(s => s.status === 'completed').length || 0}</h4>
-              <small>Completed</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-danger text-white">
-            <div className="card-body text-center">
-              <h4>{shipments?.filter(s => s.status === 'failed').length || 0}</h4>
-              <small>Failed</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-dark text-white">
-            <div className="card-body text-center">
-              <h4>{shipments?.filter(s => s.status === 'quarantined').length || 0}</h4>
-              <small>Quarantined</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-primary text-white">
-            <div className="card-body text-center">
-              <h4>{shipments?.filter(s => s.status === 'released').length || 0}</h4>
-              <small>Released</small>
+              <h4>{shipments?.length || 0}</h4>
+              <small>Total</small>
             </div>
           </div>
         </div>
@@ -238,10 +205,10 @@ export default function IncomingInspections() {
           {sortedShipments.map((shipment) => {
             const shipmentInspections = getShipmentInspections(shipment.id);
             const plan = getInspectionPlan(shipment.part_type_id);
-            
+
             return (
               <div key={shipment.id} className="col-lg-6 mb-4">
-                <div className={`card h-100 ${shipment.status === 'quarantined' ? 'border-danger' : ''}`}>
+                <div className="card h-100">
                   <div className="card-header d-flex justify-content-between align-items-center">
                     <div>
                       <strong>{getPartTypeName(shipment.part_type_id)}</strong>
@@ -253,10 +220,11 @@ export default function IncomingInspections() {
                       {shipment.received_date ? new Date(shipment.received_date).toLocaleDateString() : 'No date'}
                     </small>
                   </div>
+
                   <div className="card-body">
                     <div className="row mb-2">
                       <div className="col-6">
-                        <small className="text-muted">Lot Number</small>
+                        <small className="text-muted">Shipment #</small>
                         <div>{shipment.shipment_number || '-'}</div>
                       </div>
                       <div className="col-6">
@@ -264,10 +232,11 @@ export default function IncomingInspections() {
                         <div>{shipment.po_number || '-'}</div>
                       </div>
                     </div>
+
                     <div className="row mb-2">
                       <div className="col-6">
                         <small className="text-muted">Quantity</small>
-                        <div>{shipment.quantity || '-'}</div>
+                        <div>{shipment.quantity ?? '-'}</div>
                       </div>
                       <div className="col-6">
                         <small className="text-muted">Supplier</small>
@@ -275,7 +244,6 @@ export default function IncomingInspections() {
                       </div>
                     </div>
 
-                    {/* Inspections for this shipment */}
                     {shipmentInspections.length > 0 && (
                       <div className="mt-3">
                         <small className="text-muted">Inspections ({shipmentInspections.length})</small>
@@ -283,7 +251,12 @@ export default function IncomingInspections() {
                           {shipmentInspections.slice(0, 3).map((insp) => (
                             <div key={insp.id} className="list-group-item px-0 py-1 d-flex justify-content-between">
                               <small>{insp.inspection_type || 'Inspection'}</small>
-                              <span className={`badge bg-${getStatusBadge(insp.status)}`}>
+                              <span className={`badge bg-${getStatusBadge(
+                                // inspections.status is different enum than shipments; keep neutral badge
+                                insp.status === 'passed' ? 'approved'
+                                  : insp.status === 'failed' ? 'rejected'
+                                  : 'in_inspection'
+                              )}`}>
                                 {insp.status}
                               </span>
                             </div>
@@ -294,7 +267,15 @@ export default function IncomingInspections() {
                         </div>
                       </div>
                     )}
+
+                    {plan && (
+                      <div className="mt-3">
+                        <small className="text-muted">Plan</small>
+                        <div>{plan.name}</div>
+                      </div>
+                    )}
                   </div>
+
                   <div className="card-footer">
                     <div className="btn-group btn-group-sm w-100">
                       <button
@@ -304,6 +285,7 @@ export default function IncomingInspections() {
                       >
                         CFQ
                       </button>
+
                       <button
                         className="btn btn-outline-info"
                         onClick={() => setShowEvalModal(shipment)}
@@ -311,30 +293,39 @@ export default function IncomingInspections() {
                       >
                         Eval
                       </button>
+
                       {shipment.status === 'pending' && (
                         <button
                           className="btn btn-outline-success"
-                          onClick={() => handleUpdateStatus(shipment, 'in-progress')}
+                          onClick={() => handleUpdateStatus(shipment, 'in_inspection')}
                         >
                           Start
                         </button>
                       )}
-                      {shipment.status === 'in-progress' && (
+
+                      {shipment.status === 'in_inspection' && (
                         <>
                           <button
                             className="btn btn-outline-success"
-                            onClick={() => handleUpdateStatus(shipment, 'completed')}
+                            onClick={() => handleUpdateStatus(shipment, 'approved')}
                           >
-                            Complete
+                            Approve
                           </button>
                           <button
                             className="btn btn-outline-danger"
-                            onClick={() => handleUpdateStatus(shipment, 'failed')}
+                            onClick={() => handleUpdateStatus(shipment, 'rejected')}
                           >
-                            Fail
+                            Reject
+                          </button>
+                          <button
+                            className="btn btn-outline-primary"
+                            onClick={() => handleUpdateStatus(shipment, 'partial')}
+                          >
+                            Partial
                           </button>
                         </>
                       )}
+
                       <button
                         className="btn btn-outline-danger"
                         onClick={() => handleDeleteShipment(shipment)}
@@ -344,6 +335,7 @@ export default function IncomingInspections() {
                       </button>
                     </div>
                   </div>
+
                 </div>
               </div>
             );

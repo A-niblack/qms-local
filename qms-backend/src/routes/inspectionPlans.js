@@ -10,21 +10,25 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const [plans] = await pool.query(`
-      SELECT ip.*, pt.name as part_type_name, pt.part_number,
+      SELECT ip.*,
+             pt.name as part_type_name,
+             pt.part_number,
              u.display_name as created_by_name
       FROM inspection_plans ip
       LEFT JOIN part_types pt ON ip.part_type_id = pt.id
       LEFT JOIN users u ON ip.created_by = u.id
       ORDER BY ip.created_at DESC
     `);
-    
-    // Parse JSON criteria/characteristics
-    const parsedPlans = plans.map(plan => ({
-      ...plan,
-      criteria: plan.criteria ? JSON.parse(plan.criteria) : [],
-      characteristics: plan.criteria ? JSON.parse(plan.criteria) : [] // alias for frontend
-    }));
-    
+
+    const parsedPlans = plans.map(plan => {
+      const criteria = plan.criteria ? JSON.parse(plan.criteria) : [];
+      return {
+        ...plan,
+        criteria,
+        characteristics: criteria // compatibility alias
+      };
+    });
+
     res.json(parsedPlans);
   } catch (error) {
     console.error('Get inspection plans error:', error);
@@ -39,51 +43,55 @@ router.get('/:id', async (req, res) => {
     if (plans.length === 0) {
       return res.status(404).json({ error: 'Inspection plan not found' });
     }
-    
+
     const plan = plans[0];
-    plan.criteria = plan.criteria ? JSON.parse(plan.criteria) : [];
-    plan.characteristics = plan.criteria;
-    
+    const criteria = plan.criteria ? JSON.parse(plan.criteria) : [];
+    plan.criteria = criteria;
+    plan.characteristics = criteria;
+
     res.json(plan);
   } catch (error) {
+    console.error('Get inspection plan error:', error);
     res.status(500).json({ error: 'Failed to fetch inspection plan' });
   }
 });
 
-// Create inspection plan
+// Create inspection plan (snake_case request body)
 router.post('/', requireRole('admin', 'engineer'), async (req, res) => {
   try {
-    const { 
-      part_type_id, 
-      name, 
-      failure_description, 
-      sampleSizeFormula,
+    const {
+      part_type_id,
+      name,
+      description,
       sample_size,
       characteristics,
-      is_active 
+      is_active
+      // version/approved_by/approved_at exist in schema but not used here
     } = req.body;
-    
+
     if (!part_type_id || !name) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Validation failed',
-        message: 'Part type and plan name are required' 
+        message: 'Part type and plan name are required'
       });
     }
 
     const id = uuidv4();
-    const criteria = JSON.stringify(characteristics || []);
-    
+    const criteriaJson = JSON.stringify(characteristics || []);
+
     await pool.query(
-      `INSERT INTO inspection_plans 
-       (id, part_type_id, name, failure_description, criteria, sample_size, is_active, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `
+      INSERT INTO inspection_plans
+        (id, part_type_id, name, description, criteria, sample_size, is_active, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
       [
-        id, 
-        part_type_id, 
-        name, 
-        failure_description || '', 
-        criteria,
-        sample_size || 5,
+        id,
+        part_type_id,
+        name,
+        description || '',
+        criteriaJson,
+        sample_size ?? 5,
         is_active !== false,
         req.user.userId
       ]
@@ -91,9 +99,10 @@ router.post('/', requireRole('admin', 'engineer'), async (req, res) => {
 
     const [newPlan] = await pool.query('SELECT * FROM inspection_plans WHERE id = ?', [id]);
     const plan = newPlan[0];
-    plan.criteria = plan.criteria ? JSON.parse(plan.criteria) : [];
-    plan.characteristics = plan.criteria;
-    
+    const criteria = plan.criteria ? JSON.parse(plan.criteria) : [];
+    plan.criteria = criteria;
+    plan.characteristics = criteria;
+
     res.status(201).json(plan);
   } catch (error) {
     console.error('Create inspection plan error:', error);
@@ -101,39 +110,43 @@ router.post('/', requireRole('admin', 'engineer'), async (req, res) => {
   }
 });
 
-// Update inspection plan
+// Update inspection plan (snake_case request body)
 router.put('/:id', requireRole('admin', 'engineer'), async (req, res) => {
   try {
-    const { 
-      name, 
-      failure_description, 
-      sampleSizeFormula,
-      sample_size,
-      characteristics,
-      is_active 
-    } = req.body;
-    
-    const criteria = JSON.stringify(characteristics || []);
-    
+    const { name, description, sample_size, characteristics, is_active } = req.body;
+
+    const criteriaJson = JSON.stringify(characteristics || []);
+
     await pool.query(
-      `UPDATE inspection_plans 
-       SET name = ?, failure_description = ?, criteria = ?, sample_size = ?, is_active = ?
-       WHERE id = ?`,
+      `
+      UPDATE inspection_plans
+      SET name = ?,
+          description = ?,
+          criteria = ?,
+          sample_size = ?,
+          is_active = ?
+      WHERE id = ?
+      `,
       [
-        name, 
-        failure_description || '', 
-        criteria,
-        sample_size || 5,
+        name,
+        description || '',
+        criteriaJson,
+        sample_size ?? 5,
         is_active !== false,
         req.params.id
       ]
     );
 
     const [updated] = await pool.query('SELECT * FROM inspection_plans WHERE id = ?', [req.params.id]);
+    if (updated.length === 0) {
+      return res.status(404).json({ error: 'Inspection plan not found' });
+    }
+
     const plan = updated[0];
-    plan.criteria = plan.criteria ? JSON.parse(plan.criteria) : [];
-    plan.characteristics = plan.criteria;
-    
+    const criteria = plan.criteria ? JSON.parse(plan.criteria) : [];
+    plan.criteria = criteria;
+    plan.characteristics = criteria;
+
     res.json(plan);
   } catch (error) {
     console.error('Update inspection plan error:', error);
@@ -147,6 +160,7 @@ router.delete('/:id', requireRole('admin'), async (req, res) => {
     await pool.query('DELETE FROM inspection_plans WHERE id = ?', [req.params.id]);
     res.status(204).send();
   } catch (error) {
+    console.error('Delete inspection plan error:', error);
     res.status(500).json({ error: 'Failed to delete inspection plan' });
   }
 });

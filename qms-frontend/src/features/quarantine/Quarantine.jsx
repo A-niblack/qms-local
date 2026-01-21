@@ -1,42 +1,54 @@
 ﻿// src/features/quarantine/Quarantine.jsx
-// MIGRATED FROM FIREBASE TO REST API
+// SNAKE_CASE NORMALIZED (REST API)
 
-import React, { useState, useContext } from 'react';
+import React, { useMemo, useState, useContext } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { quarantineApi } from '../../services/api';
 import QuarantineDetailModal from './QuarantineDetailModal';
 
 export default function Quarantine() {
-  const { quarantineBatches, partTypes, shipments, refreshData, user } = useContext(AppContext);
+  const { quarantineBatches, partTypes, shipments, refreshData } = useContext(AppContext);
+
   const [showDetailModal, setShowDetailModal] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Optional helper UI: select a part type to filter shipment dropdown
+  const [selected_part_type_id, setSelectedPartTypeId] = useState('');
+
   const [newBatch, setNewBatch] = useState({
     shipment_id: '',
-    part_type_id: '',
     quantity: '',
     reason: '',
+    defect_type: '',
     location: '',
     notes: ''
   });
 
-  const getPartTypeName = (part_type_id) => {
+  const getPartNumberById = (part_type_id) => {
     const pt = partTypes?.find(p => p.id === part_type_id);
-    return pt ? pt.partNumber : 'Unknown';
+    return pt?.part_number || pt?.partNumber || pt?.name || 'Unknown';
   };
 
-  const getShipmentInfo = (shipment_id) => {
-    return shipments?.find(s => s.id === shipment_id);
+  const getBatchPartLabel = (batch) => {
+    // Prefer data directly returned by backend join
+    if (batch.part_number) return batch.part_number;
+    if (batch.part_type_id) return getPartNumberById(batch.part_type_id);
+    return 'Unknown';
   };
 
-  // Filter batches
-  const filteredBatches = quarantineBatches?.filter(b => {
+  const filteredBatches = (quarantineBatches || []).filter(b => {
     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
     return true;
-  }) || [];
+  });
+
+  const filteredShipmentsForDropdown = useMemo(() => {
+    const list = shipments || [];
+    if (!selected_part_type_id) return list;
+    return list.filter(s => s.part_type_id === selected_part_type_id);
+  }, [shipments, selected_part_type_id]);
 
   const handleCreateBatch = async (e) => {
     e.preventDefault();
@@ -50,22 +62,25 @@ export default function Quarantine() {
       setLoading(true);
       setError(null);
 
-      const batchData = {
-        ...newBatch,
+      const payload = {
+        shipment_id: newBatch.shipment_id || null,
         quantity: newBatch.quantity ? parseInt(newBatch.quantity, 10) : null,
-        status: 'pending',
-        created_by: user?.id,
-        created_by_name: user?.displayName || user?.email
+        reason: newBatch.reason,
+        defect_type: newBatch.defect_type || '',
+        location: newBatch.location || '',
+        notes: newBatch.notes || ''
       };
 
-      await quarantineApi.create(batchData);
+      await quarantineApi.create(payload);
       await refreshData();
+
       setShowNewModal(false);
+      setSelectedPartTypeId('');
       setNewBatch({
         shipment_id: '',
-        part_type_id: '',
         quantity: '',
         reason: '',
+        defect_type: '',
         location: '',
         notes: ''
       });
@@ -125,7 +140,7 @@ export default function Quarantine() {
         <div className="col-md-2">
           <div className="card bg-warning text-dark" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('pending')}>
             <div className="card-body text-center">
-              <h4>{quarantineBatches?.filter(b => b.status === 'pending').length || 0}</h4>
+              <h4>{(quarantineBatches || []).filter(b => b.status === 'pending').length}</h4>
               <small>Pending</small>
             </div>
           </div>
@@ -133,7 +148,7 @@ export default function Quarantine() {
         <div className="col-md-2">
           <div className="card bg-info text-white" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('under-review')}>
             <div className="card-body text-center">
-              <h4>{quarantineBatches?.filter(b => b.status === 'under-review').length || 0}</h4>
+              <h4>{(quarantineBatches || []).filter(b => b.status === 'under-review').length}</h4>
               <small>Under Review</small>
             </div>
           </div>
@@ -141,7 +156,7 @@ export default function Quarantine() {
         <div className="col-md-2">
           <div className="card bg-primary text-white" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('disposition')}>
             <div className="card-body text-center">
-              <h4>{quarantineBatches?.filter(b => b.status === 'disposition').length || 0}</h4>
+              <h4>{(quarantineBatches || []).filter(b => b.status === 'disposition').length}</h4>
               <small>Disposition</small>
             </div>
           </div>
@@ -149,7 +164,7 @@ export default function Quarantine() {
         <div className="col-md-2">
           <div className="card bg-success text-white" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('released')}>
             <div className="card-body text-center">
-              <h4>{quarantineBatches?.filter(b => b.status === 'released').length || 0}</h4>
+              <h4>{(quarantineBatches || []).filter(b => b.status === 'released').length}</h4>
               <small>Released</small>
             </div>
           </div>
@@ -157,7 +172,7 @@ export default function Quarantine() {
         <div className="col-md-2">
           <div className="card bg-danger text-white" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('scrapped')}>
             <div className="card-body text-center">
-              <h4>{quarantineBatches?.filter(b => b.status === 'scrapped').length || 0}</h4>
+              <h4>{(quarantineBatches || []).filter(b => b.status === 'scrapped').length}</h4>
               <small>Scrapped</small>
             </div>
           </div>
@@ -165,7 +180,7 @@ export default function Quarantine() {
         <div className="col-md-2">
           <div className="card bg-secondary text-white" style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('all')}>
             <div className="card-body text-center">
-              <h4>{quarantineBatches?.length || 0}</h4>
+              <h4>{(quarantineBatches || []).length}</h4>
               <small>Total</small>
             </div>
           </div>
@@ -187,6 +202,7 @@ export default function Quarantine() {
                 <tr>
                   <th>ID</th>
                   <th>Part Type</th>
+                  <th>Shipment</th>
                   <th>Quantity</th>
                   <th>Reason</th>
                   <th>Location</th>
@@ -198,16 +214,13 @@ export default function Quarantine() {
               <tbody>
                 {filteredBatches.map((batch) => (
                   <tr key={batch.id}>
-                    <td>
-                      <strong>Q-{batch.id.slice(-6).toUpperCase()}</strong>
-                    </td>
-                    <td>{getPartTypeName(batch.part_type_id)}</td>
-                    <td>{batch.quantity || '-'}</td>
+                    <td><strong>Q-{batch.id.slice(-6).toUpperCase()}</strong></td>
+                    <td>{getBatchPartLabel(batch)}</td>
+                    <td>{batch.shipment_number || '-'}</td>
+                    <td>{batch.quantity ?? '-'}</td>
                     <td>
                       <span title={batch.reason}>
-                        {batch.reason?.length > 30 
-                          ? batch.reason.substring(0, 30) + '...' 
-                          : batch.reason || '-'}
+                        {batch.reason?.length > 30 ? batch.reason.substring(0, 30) + '...' : (batch.reason || '-')}
                       </span>
                     </td>
                     <td>{batch.location || '-'}</td>
@@ -223,17 +236,10 @@ export default function Quarantine() {
                     </td>
                     <td>
                       <div className="btn-group btn-group-sm">
-                        <button
-                          className="btn btn-outline-primary"
-                          onClick={() => setShowDetailModal(batch)}
-                        >
+                        <button className="btn btn-outline-primary" onClick={() => setShowDetailModal(batch)}>
                           View
                         </button>
-                        <button
-                          className="btn btn-outline-danger"
-                          onClick={() => handleDelete(batch)}
-                          disabled={loading}
-                        >
+                        <button className="btn btn-outline-danger" onClick={() => handleDelete(batch)} disabled={loading}>
                           Delete
                         </button>
                       </div>
@@ -255,23 +261,26 @@ export default function Quarantine() {
                 <h5 className="modal-title">New Quarantine Batch</h5>
                 <button type="button" className="btn-close" onClick={() => setShowNewModal(false)}></button>
               </div>
+
               <form onSubmit={handleCreateBatch}>
                 <div className="modal-body">
                   {error && <div className="alert alert-danger">{error}</div>}
 
                   <div className="mb-3">
-                    <label className="form-label">Part Type</label>
+                    <label className="form-label">Filter Shipments by Part Type (optional)</label>
                     <select
                       className="form-select"
-                      value={newBatch.part_type_id}
-                      onChange={(e) => setNewBatch({ ...newBatch, part_type_id: e.target.value })}
+                      value={selected_part_type_id}
+                      onChange={(e) => setSelectedPartTypeId(e.target.value)}
                     >
-                      <option value="">Select Part Type...</option>
-                      {partTypes?.filter(pt => pt.isActive !== false).map((pt) => (
-                        <option key={pt.id} value={pt.id}>
-                          {pt.partNumber} - {pt.description || ''}
-                        </option>
-                      ))}
+                      <option value="">All Part Types...</option>
+                      {(partTypes || [])
+                        .filter(pt => pt.is_active !== false && pt.isActive !== false)
+                        .map((pt) => (
+                          <option key={pt.id} value={pt.id}>
+                            {(pt.part_number || pt.partNumber)} - {pt.description || ''}
+                          </option>
+                        ))}
                     </select>
                   </div>
 
@@ -283,9 +292,10 @@ export default function Quarantine() {
                       onChange={(e) => setNewBatch({ ...newBatch, shipment_id: e.target.value })}
                     >
                       <option value="">Select Shipment (optional)...</option>
-                      {shipments?.map((s) => (
+                      {filteredShipmentsForDropdown.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.lotNumber} - {getPartTypeName(s.part_type_id)}
+                          {(s.shipment_number || '-')}{' '}
+                          - {(s.part_type_id ? getPartNumberById(s.part_type_id) : 'Unknown')}
                         </option>
                       ))}
                     </select>
@@ -315,6 +325,17 @@ export default function Quarantine() {
                   </div>
 
                   <div className="mb-3">
+                    <label className="form-label">Defect Type (optional)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={newBatch.defect_type}
+                      onChange={(e) => setNewBatch({ ...newBatch, defect_type: e.target.value })}
+                      placeholder="e.g., Dimensional, Cosmetic, Material..."
+                    />
+                  </div>
+
+                  <div className="mb-3">
                     <label className="form-label">Reason for Quarantine *</label>
                     <textarea
                       className="form-control"
@@ -336,6 +357,7 @@ export default function Quarantine() {
                     />
                   </div>
                 </div>
+
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)}>
                     Cancel
@@ -345,6 +367,7 @@ export default function Quarantine() {
                   </button>
                 </div>
               </form>
+
             </div>
           </div>
         </div>
