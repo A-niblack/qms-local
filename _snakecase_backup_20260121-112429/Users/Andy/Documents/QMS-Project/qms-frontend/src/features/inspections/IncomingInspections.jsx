@@ -1,4 +1,4 @@
-﻿// src/features/inspections/IncomingInspections.jsx
+// src/features/inspections/IncomingInspections.jsx
 // MIGRATED FROM FIREBASE TO REST API
 
 import React, { useState, useContext } from 'react';
@@ -40,7 +40,7 @@ export default function IncomingInspections() {
 
   // Get inspections for a shipment
   const getShipmentInspections = (shipmentId) => {
-    return inspections?.filter(i => i.shipment_id === shipmentId) || [];
+    return inspections?.filter(i => i.shipmentId === shipmentId) || [];
   };
 
   // Filter and search shipments
@@ -50,11 +50,11 @@ export default function IncomingInspections() {
     
     // Search filter
     if (searchTerm) {
-      const partType = partTypes?.find(p => p.id === s.part_type_id);
+      const partType = partTypes?.find(p => p.id === s.partTypeId);
       const searchLower = searchTerm.toLowerCase();
       return (
-        s.shipment_number?.toLowerCase().includes(searchLower) ||
-        s.po_number?.toLowerCase().includes(searchLower) ||
+        s.lotNumber?.toLowerCase().includes(searchLower) ||
+        s.poNumber?.toLowerCase().includes(searchLower) ||
         partType?.partNumber?.toLowerCase().includes(searchLower) ||
         s.supplier?.toLowerCase().includes(searchLower)
       );
@@ -70,7 +70,7 @@ export default function IncomingInspections() {
   });
 
   const handleDeleteShipment = async (shipment) => {
-    if (!window.confirm(`Delete shipment ${shipment.shipment_number}? This will also delete all associated inspections.`)) {
+    if (!window.confirm(`Delete shipment ${shipment.lotNumber}? This will also delete all associated inspections.`)) {
       return;
     }
 
@@ -92,7 +92,7 @@ export default function IncomingInspections() {
       setLoading(true);
       await shipmentsApi.update(shipment.id, { 
         status: newStatus,
-        updated_at: new Date().toISOString()
+        updatedAt: new Date().toISOString()
       });
       await refreshData();
     } catch (err) {
@@ -237,31 +237,31 @@ export default function IncomingInspections() {
         <div className="row">
           {sortedShipments.map((shipment) => {
             const shipmentInspections = getShipmentInspections(shipment.id);
-            const plan = getInspectionPlan(shipment.part_type_id);
+            const plan = getInspectionPlan(shipment.partTypeId);
             
             return (
               <div key={shipment.id} className="col-lg-6 mb-4">
                 <div className={`card h-100 ${shipment.status === 'quarantined' ? 'border-danger' : ''}`}>
                   <div className="card-header d-flex justify-content-between align-items-center">
                     <div>
-                      <strong>{getPartTypeName(shipment.part_type_id)}</strong>
+                      <strong>{getPartTypeName(shipment.partTypeId)}</strong>
                       <span className={`badge bg-${getStatusBadge(shipment.status)} ms-2`}>
                         {shipment.status}
                       </span>
                     </div>
                     <small className="text-muted">
-                      {shipment.received_date ? new Date(shipment.received_date).toLocaleDateString() : 'No date'}
+                      {shipment.receivedDate ? new Date(shipment.receivedDate).toLocaleDateString() : 'No date'}
                     </small>
                   </div>
                   <div className="card-body">
                     <div className="row mb-2">
                       <div className="col-6">
                         <small className="text-muted">Lot Number</small>
-                        <div>{shipment.shipment_number || '-'}</div>
+                        <div>{shipment.lotNumber || '-'}</div>
                       </div>
                       <div className="col-6">
                         <small className="text-muted">PO Number</small>
-                        <div>{shipment.po_number || '-'}</div>
+                        <div>{shipment.poNumber || '-'}</div>
                       </div>
                     </div>
                     <div className="row mb-2">
@@ -282,7 +282,7 @@ export default function IncomingInspections() {
                         <div className="list-group list-group-flush mt-1">
                           {shipmentInspections.slice(0, 3).map((insp) => (
                             <div key={insp.id} className="list-group-item px-0 py-1 d-flex justify-content-between">
-                              <small>{insp.inspection_type || 'Inspection'}</small>
+                              <small>{insp.type || 'Inspection'}</small>
                               <span className={`badge bg-${getStatusBadge(insp.status)}`}>
                                 {insp.status}
                               </span>

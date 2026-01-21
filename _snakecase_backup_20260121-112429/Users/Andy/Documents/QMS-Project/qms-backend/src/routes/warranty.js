@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { authenticateToken, requireRole, requireFeature } from '../middleware/auth.js';
@@ -42,20 +42,20 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { 
-      part_type_id, 
-      claim_number, 
-      customer_name, 
-      customer_contact, 
-      customer_email, 
-      customer_phone, 
+      partTypeId, 
+      claimNumber, 
+      customerName, 
+      customerContact, 
+      customerEmail, 
+      customerPhone, 
       quantity, 
       failureDate,
       purchaseDate,
-      failure_description,        // Frontend sends this
-      failure_description, // Backend originally expected this
-      failure_mode, 
-      serial_number,       // Frontend sends singular
-      serial_numbers,      // Backend expected plural
+      description,        // Frontend sends this
+      failureDescription, // Backend originally expected this
+      failureMode, 
+      serialNumber,       // Frontend sends singular
+      serialNumbers,      // Backend expected plural
       rootCause,
       correctiveAction,
       resolution,
@@ -67,8 +67,8 @@ router.post('/', async (req, res) => {
       notes
     } = req.body;
     
-    // Use failure_description or failure_description
-    const failureDesc = failure_description || failure_description;
+    // Use description or failureDescription
+    const failureDesc = description || failureDescription;
     
     if (!failureDesc) {
       return res.status(400).json({
@@ -86,17 +86,17 @@ router.post('/', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, 
-        part_type_id || null, 
-        claim_number || null, 
-        customer_name || '', 
-        customer_contact || '', 
-        customer_email || '',
-        customer_phone || '', 
+        partTypeId || null, 
+        claimNumber || null, 
+        customerName || '', 
+        customerContact || '', 
+        customerEmail || '',
+        customerPhone || '', 
         quantity || 1, 
         failureDate || null, 
         failureDesc,
-        failure_mode || '',
-        serial_number || serial_numbers || '', 
+        failureMode || '',
+        serialNumber || serialNumbers || '', 
         status || 'open',
         req.user.userId
       ]
@@ -114,7 +114,7 @@ router.post('/', async (req, res) => {
 // Update warranty claim
 router.put('/:id', async (req, res) => {
   try {
-    const { status, resolution, credit_amount, replacement_shipped, assigned_to } = req.body;
+    const { status, resolution, creditAmount, replacementShipped, assignedTo } = req.body;
     
     const closedAt = status === 'closed' ? new Date() : null;
     
@@ -122,7 +122,7 @@ router.put('/:id', async (req, res) => {
       `UPDATE warranty_claims SET status = ?, resolution = ?, credit_amount = ?, 
        replacement_shipped = ?, assigned_to = ?, closed_at = ?
        WHERE id = ?`,
-      [status, resolution || '', credit_amount || null, replacement_shipped || false, assigned_to || null, closedAt, req.params.id]
+      [status, resolution || '', creditAmount || null, replacementShipped || false, assignedTo || null, closedAt, req.params.id]
     );
 
     const [updated] = await pool.query('SELECT * FROM warranty_claims WHERE id = ?', [req.params.id]);

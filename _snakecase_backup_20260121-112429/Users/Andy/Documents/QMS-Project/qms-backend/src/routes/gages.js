@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
@@ -37,24 +37,24 @@ router.get('/:id', async (req, res) => {
 // Create gage
 router.post('/', requireRole('admin', 'engineer'), async (req, res) => {
   try {
-    const { gage_id, name, failure_description, type, manufacturer, model_number, serial_number,
-            range_min, range_max, resolution, units, accuracy, calibration_date, 
-            calibration_interval_days, calibration_provider, location, assigned_to } = req.body;
+    const { gageId, name, description, type, manufacturer, modelNumber, serialNumber,
+            rangeMin, rangeMax, resolution, units, accuracy, calibrationDate, 
+            calibrationIntervalDays, calibrationProvider, location, assignedTo } = req.body;
     
     const id = uuidv4();
-    const nextCalDate = calibration_date && calibration_interval_days 
-      ? new Date(new Date(calibration_date).getTime() + calibration_interval_days * 24 * 60 * 60 * 1000)
+    const nextCalDate = calibrationDate && calibrationIntervalDays 
+      ? new Date(new Date(calibrationDate).getTime() + calibrationIntervalDays * 24 * 60 * 60 * 1000)
       : null;
     
     await pool.query(
-      `INSERT INTO gages (id, gage_id, name, failure_description, type, manufacturer, model_number, 
+      `INSERT INTO gages (id, gage_id, name, description, type, manufacturer, model_number, 
        serial_number, range_min, range_max, resolution, units, accuracy, calibration_date, 
        next_calibration_date, calibration_interval_days, calibration_provider, location, assigned_to)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, gage_id, name, failure_description || '', type || '', manufacturer || '', model_number || '',
-       serial_number || '', range_min || null, range_max || null, resolution || null, units || '',
-       accuracy || '', calibration_date || null, nextCalDate, calibration_interval_days || 365,
-       calibration_provider || '', location || '', assigned_to || null]
+      [id, gageId, name, description || '', type || '', manufacturer || '', modelNumber || '',
+       serialNumber || '', rangeMin || null, rangeMax || null, resolution || null, units || '',
+       accuracy || '', calibrationDate || null, nextCalDate, calibrationIntervalDays || 365,
+       calibrationProvider || '', location || '', assignedTo || null]
     );
 
     const [newGage] = await pool.query('SELECT * FROM gages WHERE id = ?', [id]);
@@ -68,26 +68,26 @@ router.post('/', requireRole('admin', 'engineer'), async (req, res) => {
 // Update gage
 router.put('/:id', requireRole('admin', 'engineer'), async (req, res) => {
   try {
-    const { gage_id, name, failure_description, type, manufacturer, model_number, serial_number,
-            range_min, range_max, resolution, units, accuracy, calibration_date, 
-            calibration_interval_days, calibration_provider, certificate_number, location, 
-            assigned_to, status, notes } = req.body;
+    const { gageId, name, description, type, manufacturer, modelNumber, serialNumber,
+            rangeMin, rangeMax, resolution, units, accuracy, calibrationDate, 
+            calibrationIntervalDays, calibrationProvider, certificateNumber, location, 
+            assignedTo, status, notes } = req.body;
     
-    const nextCalDate = calibration_date && calibration_interval_days 
-      ? new Date(new Date(calibration_date).getTime() + calibration_interval_days * 24 * 60 * 60 * 1000)
+    const nextCalDate = calibrationDate && calibrationIntervalDays 
+      ? new Date(new Date(calibrationDate).getTime() + calibrationIntervalDays * 24 * 60 * 60 * 1000)
       : null;
     
     await pool.query(
-      `UPDATE gages SET gage_id = ?, name = ?, failure_description = ?, type = ?, manufacturer = ?, 
+      `UPDATE gages SET gage_id = ?, name = ?, description = ?, type = ?, manufacturer = ?, 
        model_number = ?, serial_number = ?, range_min = ?, range_max = ?, resolution = ?, 
        units = ?, accuracy = ?, calibration_date = ?, next_calibration_date = ?, 
        calibration_interval_days = ?, calibration_provider = ?, certificate_number = ?,
        location = ?, assigned_to = ?, status = ?, notes = ?
        WHERE id = ?`,
-      [gage_id, name, failure_description, type, manufacturer, model_number, serial_number,
-       range_min, range_max, resolution, units, accuracy, calibration_date, nextCalDate,
-       calibration_interval_days, calibration_provider, certificate_number, location, 
-       assigned_to, status, notes, req.params.id]
+      [gageId, name, description, type, manufacturer, modelNumber, serialNumber,
+       rangeMin, rangeMax, resolution, units, accuracy, calibrationDate, nextCalDate,
+       calibrationIntervalDays, calibrationProvider, certificateNumber, location, 
+       assignedTo, status, notes, req.params.id]
     );
 
     const [updated] = await pool.query('SELECT * FROM gages WHERE id = ?', [req.params.id]);

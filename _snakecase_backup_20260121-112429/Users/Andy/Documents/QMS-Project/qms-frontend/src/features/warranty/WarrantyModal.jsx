@@ -1,4 +1,4 @@
-﻿// src/features/warranty/WarrantyModal.jsx
+// src/features/warranty/WarrantyModal.jsx
 // MIGRATED FROM FIREBASE TO REST API
 
 import React, { useState, useContext, useRef } from 'react';
@@ -13,17 +13,17 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
-    claim_number: claim?.claim_number || '',
-    part_type_id: claim?.part_type_id || '',
-    customer_name: claim?.customer_name || '',
-    customer_contact: claim?.customer_contact || '',
-    customer_email: claim?.customer_email || '',
-    customer_phone: claim?.customer_phone || '',
-    serial_numbers: claim?.serial_numbers || '',
+    claimNumber: claim?.claimNumber || '',
+    partTypeId: claim?.partTypeId || '',
+    customerName: claim?.customerName || '',
+    customerContact: claim?.customerContact || '',
+    customerEmail: claim?.customerEmail || '',
+    customerPhone: claim?.customerPhone || '',
+    serialNumber: claim?.serialNumber || '',
     purchaseDate: claim?.purchaseDate?.split('T')[0] || '',
     failureDate: claim?.failureDate?.split('T')[0] || '',
-    failure_description: claim?.failure_description || '',
-    failure_mode: claim?.failure_mode || '',
+    description: claim?.description || '',
+    failureMode: claim?.failureMode || '',
     rootCause: claim?.rootCause || '',
     correctiveAction: claim?.correctiveAction || '',
     resolution: claim?.resolution || '',
@@ -133,7 +133,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.failure_description.trim()) {
+    if (!formData.description.trim()) {
       setError('Description is required');
       return;
     }
@@ -144,7 +144,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
 
       const claimData = {
         ...formData,
-        claim_number: formData.claim_number || generateClaimNumber(),
+        claimNumber: formData.claimNumber || generateClaimNumber(),
         cost: formData.cost ? parseFloat(formData.cost) : null,
         updatedBy: user?.id,
         updatedByName: user?.displayName || user?.email
@@ -173,7 +173,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
         <div className="modal-content">
           <div className="modal-header bg-primary text-white">
             <h5 className="modal-title">
-              {claim ? `Edit Claim: ${claim.claim_number || 'Draft'}` : 'New Warranty Claim'}
+              {claim ? `Edit Claim: ${claim.claimNumber || 'Draft'}` : 'New Warranty Claim'}
             </h5>
             <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
           </div>
@@ -190,8 +190,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="text"
                     className="form-control"
-                    value={formData.claim_number}
-                    onChange={(e) => setFormData({ ...formData, claim_number: e.target.value })}
+                    value={formData.claimNumber}
+                    onChange={(e) => setFormData({ ...formData, claimNumber: e.target.value })}
                     placeholder="Auto-generated"
                   />
                 </div>
@@ -199,8 +199,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <label className="form-label">Part Type</label>
                   <select
                     className="form-select"
-                    value={formData.part_type_id}
-                    onChange={(e) => setFormData({ ...formData, part_type_id: e.target.value })}
+                    value={formData.partTypeId}
+                    onChange={(e) => setFormData({ ...formData, partTypeId: e.target.value })}
                   >
                     <option value="">Select Part Type...</option>
                     {partTypes?.map((pt) => (
@@ -246,8 +246,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="text"
                     className="form-control"
-                    value={formData.customer_name}
-                    onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                    value={formData.customerName}
+                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
                   />
                 </div>
                 <div className="col-md-4 mb-3">
@@ -255,8 +255,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="text"
                     className="form-control"
-                    value={formData.customer_contact}
-                    onChange={(e) => setFormData({ ...formData, customer_contact: e.target.value })}
+                    value={formData.customerContact}
+                    onChange={(e) => setFormData({ ...formData, customerContact: e.target.value })}
                   />
                 </div>
                 <div className="col-md-4 mb-3">
@@ -264,8 +264,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="email"
                     className="form-control"
-                    value={formData.customer_email}
-                    onChange={(e) => setFormData({ ...formData, customer_email: e.target.value })}
+                    value={formData.customerEmail}
+                    onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
                   />
                 </div>
               </div>
@@ -276,8 +276,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="tel"
                     className="form-control"
-                    value={formData.customer_phone}
-                    onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
+                    value={formData.customerPhone}
+                    onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
                   />
                 </div>
                 <div className="col-md-4 mb-3">
@@ -285,8 +285,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <input
                     type="text"
                     className="form-control"
-                    value={formData.serial_numbers}
-                    onChange={(e) => setFormData({ ...formData, serial_numbers: e.target.value })}
+                    value={formData.serialNumber}
+                    onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
                   />
                 </div>
                 <div className="col-md-4 mb-3">
@@ -335,8 +335,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                   <label className="form-label">Failure Mode</label>
                   <select
                     className="form-select"
-                    value={formData.failure_mode}
-                    onChange={(e) => setFormData({ ...formData, failure_mode: e.target.value })}
+                    value={formData.failureMode}
+                    onChange={(e) => setFormData({ ...formData, failureMode: e.target.value })}
                   >
                     <option value="">Select Failure Mode...</option>
                     {failureModes.map(fm => (
@@ -351,8 +351,8 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                 <textarea
                   className="form-control"
                   rows="3"
-                  value={formData.failure_description}
-                  onChange={(e) => setFormData({ ...formData, failure_description: e.target.value })}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
                   placeholder="Describe the issue in detail..."
                 />
@@ -436,7 +436,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                             className="btn btn-sm btn-danger position-absolute top-0 end-0"
                             onClick={() => handleRemoveImage(index)}
                           >
-                            Ã—
+                            ×
                           </button>
                         </div>
                       </div>
@@ -460,7 +460,7 @@ export default function WarrantyModal({ claim, onClose, onSuccess }) {
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => handleRemoveAttachment(index)}
                         >
-                          Ã—
+                          ×
                         </button>
                       </li>
                     ))}

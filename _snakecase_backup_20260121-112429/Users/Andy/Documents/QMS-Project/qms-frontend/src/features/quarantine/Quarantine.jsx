@@ -1,4 +1,4 @@
-﻿// src/features/quarantine/Quarantine.jsx
+// src/features/quarantine/Quarantine.jsx
 // MIGRATED FROM FIREBASE TO REST API
 
 import React, { useState, useContext } from 'react';
@@ -15,21 +15,21 @@ export default function Quarantine() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [newBatch, setNewBatch] = useState({
-    shipment_id: '',
-    part_type_id: '',
+    shipmentId: '',
+    partTypeId: '',
     quantity: '',
     reason: '',
     location: '',
     notes: ''
   });
 
-  const getPartTypeName = (part_type_id) => {
-    const pt = partTypes?.find(p => p.id === part_type_id);
+  const getPartTypeName = (partTypeId) => {
+    const pt = partTypes?.find(p => p.id === partTypeId);
     return pt ? pt.partNumber : 'Unknown';
   };
 
-  const getShipmentInfo = (shipment_id) => {
-    return shipments?.find(s => s.id === shipment_id);
+  const getShipmentInfo = (shipmentId) => {
+    return shipments?.find(s => s.id === shipmentId);
   };
 
   // Filter batches
@@ -54,16 +54,16 @@ export default function Quarantine() {
         ...newBatch,
         quantity: newBatch.quantity ? parseInt(newBatch.quantity, 10) : null,
         status: 'pending',
-        created_by: user?.id,
-        created_by_name: user?.displayName || user?.email
+        createdBy: user?.id,
+        createdByName: user?.displayName || user?.email
       };
 
       await quarantineApi.create(batchData);
       await refreshData();
       setShowNewModal(false);
       setNewBatch({
-        shipment_id: '',
-        part_type_id: '',
+        shipmentId: '',
+        partTypeId: '',
         quantity: '',
         reason: '',
         location: '',
@@ -201,7 +201,7 @@ export default function Quarantine() {
                     <td>
                       <strong>Q-{batch.id.slice(-6).toUpperCase()}</strong>
                     </td>
-                    <td>{getPartTypeName(batch.part_type_id)}</td>
+                    <td>{getPartTypeName(batch.partTypeId)}</td>
                     <td>{batch.quantity || '-'}</td>
                     <td>
                       <span title={batch.reason}>
@@ -218,7 +218,7 @@ export default function Quarantine() {
                     </td>
                     <td>
                       <small>
-                        {batch.created_at ? new Date(batch.created_at).toLocaleDateString() : '-'}
+                        {batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : '-'}
                       </small>
                     </td>
                     <td>
@@ -263,8 +263,8 @@ export default function Quarantine() {
                     <label className="form-label">Part Type</label>
                     <select
                       className="form-select"
-                      value={newBatch.part_type_id}
-                      onChange={(e) => setNewBatch({ ...newBatch, part_type_id: e.target.value })}
+                      value={newBatch.partTypeId}
+                      onChange={(e) => setNewBatch({ ...newBatch, partTypeId: e.target.value })}
                     >
                       <option value="">Select Part Type...</option>
                       {partTypes?.filter(pt => pt.isActive !== false).map((pt) => (
@@ -279,13 +279,13 @@ export default function Quarantine() {
                     <label className="form-label">Related Shipment</label>
                     <select
                       className="form-select"
-                      value={newBatch.shipment_id}
-                      onChange={(e) => setNewBatch({ ...newBatch, shipment_id: e.target.value })}
+                      value={newBatch.shipmentId}
+                      onChange={(e) => setNewBatch({ ...newBatch, shipmentId: e.target.value })}
                     >
                       <option value="">Select Shipment (optional)...</option>
                       {shipments?.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.lotNumber} - {getPartTypeName(s.part_type_id)}
+                          {s.lotNumber} - {getPartTypeName(s.partTypeId)}
                         </option>
                       ))}
                     </select>

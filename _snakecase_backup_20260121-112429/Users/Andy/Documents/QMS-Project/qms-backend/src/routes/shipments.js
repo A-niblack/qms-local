@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
@@ -46,9 +46,9 @@ router.get('/:id', async (req, res) => {
 // Create shipment
 router.post('/', async (req, res) => {
   try {
-    const { part_type_id, shipment_number, supplier, supplier_lot, quantity, received_date, po_number, notes } = req.body;
+    const { partTypeId, shipmentNumber, supplier, supplierLot, quantity, receivedDate, poNumber, notes } = req.body;
     
-    if (!part_type_id || !quantity) {
+    if (!partTypeId || !quantity) {
       return res.status(400).json({ error: 'Part type and quantity are required' });
     }
 
@@ -56,7 +56,7 @@ router.post('/', async (req, res) => {
     await pool.query(
       `INSERT INTO shipments (id, part_type_id, shipment_number, supplier, supplier_lot, quantity, received_date, po_number, notes, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, part_type_id, shipment_number || null, supplier || '', supplier_lot || '', quantity, received_date || null, po_number || '', notes || '', req.user.userId]
+      [id, partTypeId, shipmentNumber || null, supplier || '', supplierLot || '', quantity, receivedDate || null, poNumber || '', notes || '', req.user.userId]
     );
 
     const [newShipment] = await pool.query('SELECT * FROM shipments WHERE id = ?', [id]);
@@ -72,19 +72,19 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { 
-      part_type_id, 
+      partTypeId, 
       part_type_id,
-      shipment_number, 
+      shipmentNumber, 
       shipment_number,
       supplier, 
-      supplier_lot, 
+      supplierLot, 
       supplier_lot,
       quantity, 
-      quantity_received, 
+      quantityReceived, 
       quantity_received,
-      received_date, 
+      receivedDate, 
       received_date,
-      po_number, 
+      poNumber, 
       po_number,
       status, 
       notes,
@@ -93,12 +93,12 @@ router.put('/:id', async (req, res) => {
     } = req.body;
     
     // Handle both camelCase and snake_case
-    const finalPartTypeId = part_type_id || part_type_id;
-    const finalShipmentNumber = shipment_number || shipment_number || lotNumber || lot_number;
-    const finalSupplierLot = supplier_lot || supplier_lot;
-    const finalQuantityReceived = quantity_received || quantity_received;
-    const finalReceivedDate = received_date || received_date;
-    const finalPoNumber = po_number || po_number;
+    const finalPartTypeId = partTypeId || part_type_id;
+    const finalShipmentNumber = shipmentNumber || shipment_number || lotNumber || lot_number;
+    const finalSupplierLot = supplierLot || supplier_lot;
+    const finalQuantityReceived = quantityReceived || quantity_received;
+    const finalReceivedDate = receivedDate || received_date;
+    const finalPoNumber = poNumber || po_number;
     
     await pool.query(
       `UPDATE shipments 

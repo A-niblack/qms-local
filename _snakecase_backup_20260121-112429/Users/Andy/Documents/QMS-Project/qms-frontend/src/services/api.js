@@ -1,4 +1,4 @@
-﻿// src/services/api.js
+// src/services/api.js
 // REST API Service Layer for QMS App
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -100,10 +100,10 @@ export const authApi = {
     return response;
   },
   
-  register: async (email, password, display_name) => {
+  register: async (email, password, displayName) => {
     const response = await apiFetch('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, display_name }),
+      body: JSON.stringify({ email, password, displayName }),
     });
     if (response.token) {
       setToken(response.token);

@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
@@ -42,13 +42,13 @@ router.get('/:id', async (req, res) => {
 // Create quarantine batch
 router.post('/', async (req, res) => {
   try {
-    const { shipment_id, inspection_id, quarantine_number, quantity, reason, defect_type, location } = req.body;
+    const { shipmentId, inspectionId, quarantineNumber, quantity, reason, defectType, location } = req.body;
     
     const id = uuidv4();
     await pool.query(
       `INSERT INTO quarantine_batches (id, shipment_id, inspection_id, quarantine_number, quantity, reason, defect_type, location, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, shipment_id, inspection_id || null, quarantine_number || null, quantity, reason, defect_type || '', location || '', req.user.userId]
+      [id, shipmentId, inspectionId || null, quarantineNumber || null, quantity, reason, defectType || '', location || '', req.user.userId]
     );
 
     const [newBatch] = await pool.query('SELECT * FROM quarantine_batches WHERE id = ?', [id]);
@@ -61,12 +61,12 @@ router.post('/', async (req, res) => {
 // Update quarantine batch (disposition)
 router.put('/:id', requireRole('admin', 'engineer'), async (req, res) => {
   try {
-    const { disposition, disposition_notes } = req.body;
+    const { disposition, dispositionNotes } = req.body;
     
     await pool.query(
       `UPDATE quarantine_batches SET disposition = ?, disposition_notes = ?, disposition_by = ?, disposition_date = NOW()
        WHERE id = ?`,
-      [disposition, disposition_notes || '', req.user.userId, req.params.id]
+      [disposition, dispositionNotes || '', req.user.userId, req.params.id]
     );
 
     const [updated] = await pool.query('SELECT * FROM quarantine_batches WHERE id = ?', [req.params.id]);

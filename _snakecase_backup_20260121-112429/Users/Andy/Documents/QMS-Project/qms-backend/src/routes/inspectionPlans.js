@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
@@ -54,16 +54,16 @@ router.get('/:id', async (req, res) => {
 router.post('/', requireRole('admin', 'engineer'), async (req, res) => {
   try {
     const { 
-      part_type_id, 
+      partTypeId, 
       name, 
-      failure_description, 
+      description, 
       sampleSizeFormula,
-      sample_size,
+      defaultSampleSize,
       characteristics,
-      is_active 
+      isActive 
     } = req.body;
     
-    if (!part_type_id || !name) {
+    if (!partTypeId || !name) {
       return res.status(400).json({ 
         error: 'Validation failed',
         message: 'Part type and plan name are required' 
@@ -75,16 +75,16 @@ router.post('/', requireRole('admin', 'engineer'), async (req, res) => {
     
     await pool.query(
       `INSERT INTO inspection_plans 
-       (id, part_type_id, name, failure_description, criteria, sample_size, is_active, created_by)
+       (id, part_type_id, name, description, criteria, sample_size, is_active, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, 
-        part_type_id, 
+        partTypeId, 
         name, 
-        failure_description || '', 
+        description || '', 
         criteria,
-        sample_size || 5,
-        is_active !== false,
+        defaultSampleSize || 5,
+        isActive !== false,
         req.user.userId
       ]
     );
@@ -106,25 +106,25 @@ router.put('/:id', requireRole('admin', 'engineer'), async (req, res) => {
   try {
     const { 
       name, 
-      failure_description, 
+      description, 
       sampleSizeFormula,
-      sample_size,
+      defaultSampleSize,
       characteristics,
-      is_active 
+      isActive 
     } = req.body;
     
     const criteria = JSON.stringify(characteristics || []);
     
     await pool.query(
       `UPDATE inspection_plans 
-       SET name = ?, failure_description = ?, criteria = ?, sample_size = ?, is_active = ?
+       SET name = ?, description = ?, criteria = ?, sample_size = ?, is_active = ?
        WHERE id = ?`,
       [
         name, 
-        failure_description || '', 
+        description || '', 
         criteria,
-        sample_size || 5,
-        is_active !== false,
+        defaultSampleSize || 5,
+        isActive !== false,
         req.params.id
       ]
     );

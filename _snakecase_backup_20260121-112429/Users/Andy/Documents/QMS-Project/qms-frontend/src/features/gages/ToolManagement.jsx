@@ -1,4 +1,4 @@
-﻿// src/features/gages/ToolManagement.jsx
+// src/features/gages/ToolManagement.jsx
 // MIGRATED FROM FIREBASE TO REST API
 
 import React, { useState, useContext } from 'react';
@@ -15,20 +15,20 @@ export default function ToolManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [formData, setFormData] = useState({
-    gage_id: '',
+    gageId: '',
     name: '',
     type: '',
     manufacturer: '',
-    model_number: '',
-    serial_number: '',
+    model: '',
+    serialNumber: '',
     range: '',
     resolution: '',
     accuracy: '',
     location: '',
-    calibration_date: '',
-    next_calibration_date: '',
-    calibration_interval_days: '12',
-    certificate_number: '',
+    calibrationDate: '',
+    calibrationDueDate: '',
+    calibrationInterval: '12',
+    certificateNumber: '',
     status: 'active',
     notes: ''
   });
@@ -41,20 +41,20 @@ export default function ToolManagement() {
 
   const resetForm = () => {
     setFormData({
-      gage_id: '',
+      gageId: '',
       name: '',
       type: '',
       manufacturer: '',
-      model_number: '',
-      serial_number: '',
+      model: '',
+      serialNumber: '',
       range: '',
       resolution: '',
       accuracy: '',
       location: '',
-      calibration_date: '',
-      next_calibration_date: '',
-      calibration_interval_days: '12',
-      certificate_number: '',
+      calibrationDate: '',
+      calibrationDueDate: '',
+      calibrationInterval: '12',
+      certificateNumber: '',
       status: 'active',
       notes: ''
     });
@@ -66,20 +66,20 @@ export default function ToolManagement() {
     if (gage) {
       setEditingGage(gage);
       setFormData({
-        gage_id: gage.gage_id || '',
+        gageId: gage.gageId || '',
         name: gage.name || '',
         type: gage.type || '',
         manufacturer: gage.manufacturer || '',
-        model_number: gage.model_number || '',
-        serial_number: gage.serial_number || '',
+        model: gage.model || '',
+        serialNumber: gage.serialNumber || '',
         range: gage.range || '',
         resolution: gage.resolution || '',
         accuracy: gage.accuracy || '',
         location: gage.location || '',
-        calibration_date: gage.calibration_date?.split('T')[0] || '',
-        next_calibration_date: gage.next_calibration_date?.split('T')[0] || '',
-        calibration_interval_days: gage.calibration_interval_days || '12',
-        certificate_number: gage.certificate_number || '',
+        calibrationDate: gage.calibrationDate?.split('T')[0] || '',
+        calibrationDueDate: gage.calibrationDueDate?.split('T')[0] || '',
+        calibrationInterval: gage.calibrationInterval || '12',
+        certificateNumber: gage.certificateNumber || '',
         status: gage.status || 'active',
         notes: gage.notes || ''
       });
@@ -90,21 +90,21 @@ export default function ToolManagement() {
   };
 
   const handleCalibrationDateChange = (date) => {
-    const interval = parseInt(formData.calibration_interval_days, 10) || 12;
+    const interval = parseInt(formData.calibrationInterval, 10) || 12;
     const calDate = new Date(date);
     calDate.setMonth(calDate.getMonth() + interval);
     
     setFormData(prev => ({
       ...prev,
-      calibration_date: date,
-      next_calibration_date: calDate.toISOString().split('T')[0]
+      calibrationDate: date,
+      calibrationDueDate: calDate.toISOString().split('T')[0]
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.gage_id.trim() || !formData.name.trim()) {
+    if (!formData.gageId.trim() || !formData.name.trim()) {
       setError('Gage ID and Name are required');
       return;
     }
@@ -115,7 +115,7 @@ export default function ToolManagement() {
 
       const gageData = {
         ...formData,
-        calibration_interval_days: parseInt(formData.calibration_interval_days, 10),
+        calibrationInterval: parseInt(formData.calibrationInterval, 10),
         updatedBy: user?.id
       };
 
@@ -138,7 +138,7 @@ export default function ToolManagement() {
   };
 
   const handleDelete = async (gage) => {
-    if (!window.confirm(`Delete gage "${gage.gage_id}"?`)) return;
+    if (!window.confirm(`Delete gage "${gage.gageId}"?`)) return;
 
     try {
       setLoading(true);
@@ -154,10 +154,10 @@ export default function ToolManagement() {
 
   // Calculate calibration status
   const getCalibrationStatus = (gage) => {
-    if (!gage.next_calibration_date) return { status: 'unknown', badge: 'secondary', label: 'Unknown' };
+    if (!gage.calibrationDueDate) return { status: 'unknown', badge: 'secondary', label: 'Unknown' };
     
     const today = new Date();
-    const dueDate = new Date(gage.next_calibration_date);
+    const dueDate = new Date(gage.calibrationDueDate);
     const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
 
     if (daysUntilDue < 0) return { status: 'overdue', badge: 'danger', label: 'Overdue' };
@@ -178,9 +178,9 @@ export default function ToolManagement() {
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
-        g.gage_id?.toLowerCase().includes(search) ||
+        g.gageId?.toLowerCase().includes(search) ||
         g.name?.toLowerCase().includes(search) ||
-        g.serial_number?.toLowerCase().includes(search) ||
+        g.serialNumber?.toLowerCase().includes(search) ||
         g.type?.toLowerCase().includes(search)
       );
     }
@@ -308,19 +308,19 @@ export default function ToolManagement() {
                   const calStatus = getCalibrationStatus(gage);
                   return (
                     <tr key={gage.id} className={gage.status === 'inactive' ? 'table-secondary' : ''}>
-                      <td><strong>{gage.gage_id}</strong></td>
+                      <td><strong>{gage.gageId}</strong></td>
                       <td>{gage.name}</td>
                       <td>{gage.type || '-'}</td>
-                      <td>{gage.serial_number || '-'}</td>
+                      <td>{gage.serialNumber || '-'}</td>
                       <td>{gage.location || '-'}</td>
                       <td>
-                        {gage.calibration_date 
-                          ? new Date(gage.calibration_date).toLocaleDateString() 
+                        {gage.calibrationDate 
+                          ? new Date(gage.calibrationDate).toLocaleDateString() 
                           : '-'}
                       </td>
                       <td>
-                        {gage.next_calibration_date 
-                          ? new Date(gage.next_calibration_date).toLocaleDateString() 
+                        {gage.calibrationDueDate 
+                          ? new Date(gage.calibrationDueDate).toLocaleDateString() 
                           : '-'}
                       </td>
                       <td>
@@ -378,8 +378,8 @@ export default function ToolManagement() {
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.gage_id}
-                        onChange={(e) => setFormData({ ...formData, gage_id: e.target.value })}
+                        value={formData.gageId}
+                        onChange={(e) => setFormData({ ...formData, gageId: e.target.value })}
                         required
                         placeholder="e.g., CAL-001"
                       />
@@ -425,8 +425,8 @@ export default function ToolManagement() {
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.model_number}
-                        onChange={(e) => setFormData({ ...formData, model_number: e.target.value })}
+                        value={formData.model}
+                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                       />
                     </div>
                     <div className="col-md-4 mb-3">
@@ -434,8 +434,8 @@ export default function ToolManagement() {
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.serial_number}
-                        onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+                        value={formData.serialNumber}
+                        onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
                       />
                     </div>
                   </div>
@@ -468,7 +468,7 @@ export default function ToolManagement() {
                         className="form-control"
                         value={formData.accuracy}
                         onChange={(e) => setFormData({ ...formData, accuracy: e.target.value })}
-                        placeholder="e.g., Â±0.02mm"
+                        placeholder="e.g., ±0.02mm"
                       />
                     </div>
                   </div>
@@ -508,7 +508,7 @@ export default function ToolManagement() {
                       <input
                         type="date"
                         className="form-control"
-                        value={formData.calibration_date}
+                        value={formData.calibrationDate}
                         onChange={(e) => handleCalibrationDateChange(e.target.value)}
                       />
                     </div>
@@ -517,8 +517,8 @@ export default function ToolManagement() {
                       <input
                         type="number"
                         className="form-control"
-                        value={formData.calibration_interval_days}
-                        onChange={(e) => setFormData({ ...formData, calibration_interval_days: e.target.value })}
+                        value={formData.calibrationInterval}
+                        onChange={(e) => setFormData({ ...formData, calibrationInterval: e.target.value })}
                         min="1"
                       />
                     </div>
@@ -527,8 +527,8 @@ export default function ToolManagement() {
                       <input
                         type="date"
                         className="form-control"
-                        value={formData.next_calibration_date}
-                        onChange={(e) => setFormData({ ...formData, next_calibration_date: e.target.value })}
+                        value={formData.calibrationDueDate}
+                        onChange={(e) => setFormData({ ...formData, calibrationDueDate: e.target.value })}
                       />
                     </div>
                     <div className="col-md-3 mb-3">
@@ -536,8 +536,8 @@ export default function ToolManagement() {
                       <input
                         type="text"
                         className="form-control"
-                        value={formData.certificate_number}
-                        onChange={(e) => setFormData({ ...formData, certificate_number: e.target.value })}
+                        value={formData.certificateNumber}
+                        onChange={(e) => setFormData({ ...formData, certificateNumber: e.target.value })}
                       />
                     </div>
                   </div>

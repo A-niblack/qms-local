@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { authenticateToken, requireRole, getTierLimits, TIER_FEATURES } from '../middleware/auth.js';
@@ -64,10 +64,10 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
   try {
-    const { part_number, name, failure_description, category, supplier, revision, drawing_number, drawing_url, drawing_file_name, is_active } = req.body;
+    const { partNumber, name, description, category, supplier, revision, drawingNumber, drawingUrl, drawingFileName, isActive } = req.body;
 
-    // Validation - only part_number is truly required
-    if (!part_number) {
+    // Validation - only partNumber is truly required
+    if (!partNumber) {
       return res.status(400).json({ 
         error: 'Validation failed',
         message: 'Part number is required' 
@@ -88,13 +88,13 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
         upgradeRequired: true
       });
     }
-    // Use part_number as name if name not provided
-    const partName = name || part_number;
+    // Use partNumber as name if name not provided
+    const partName = name || partNumber;
 
     // Check for duplicate part number
     const [existing] = await pool.query(
       'SELECT id FROM part_types WHERE part_number = ?',
-      [part_number]
+      [partNumber]
     );
 
     if (existing.length > 0) {
@@ -108,9 +108,9 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
     const id = uuidv4();
     
      await pool.query(
-      `INSERT INTO part_types (id, part_number, name, failure_description, category, created_by)
+      `INSERT INTO part_types (id, part_number, name, description, category, created_by)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, part_number, partName, failure_description || '', category || '', req.user.userId]
+      [id, partNumber, partName, description || '', category || '', req.user.userId]
     );
 
     // Fetch and return the created part type
@@ -129,7 +129,7 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
  */
 router.put('/:id', requireRole('admin'), async (req, res) => {
   try {
-    const { part_number, name, failure_description, category, is_active } = req.body;
+    const { partNumber, name, description, category, isActive } = req.body;
 
     // Check if part type exists
     const [existing] = await pool.query('SELECT id FROM part_types WHERE id = ?', [req.params.id]);
@@ -141,9 +141,9 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
     // Update
     await pool.query(
       `UPDATE part_types 
-       SET part_number = ?, name = ?, failure_description = ?, category = ?, is_active = ?
+       SET part_number = ?, name = ?, description = ?, category = ?, is_active = ?
        WHERE id = ?`,
-      [part_number, name, failure_description || '', category || '', is_active !== false, req.params.id]
+      [partNumber, name, description || '', category || '', isActive !== false, req.params.id]
     );
 
     // Fetch and return updated part type

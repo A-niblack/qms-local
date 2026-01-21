@@ -1,4 +1,4 @@
-﻿// src/features/inspections/NewShipmentModal.jsx
+// src/features/inspections/NewShipmentModal.jsx
 // MIGRATED FROM FIREBASE TO REST API
 
 import React, { useState, useContext } from 'react';
@@ -11,12 +11,12 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
   const [error, setError] = useState(null);
 
   const [formData, setFormData] = useState({
-    part_type_id: '',
-    shipment_number: '',
-    po_number: '',
+    partTypeId: '',
+    lotNumber: '',
+    poNumber: '',
     quantity: '',
     supplier: '',
-    received_date: new Date().toISOString().split('T')[0],
+    receivedDate: new Date().toISOString().split('T')[0],
     notes: ''
   });
 
@@ -26,12 +26,12 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.part_type_id) {
+    if (!formData.partTypeId) {
       setError('Please select a part type');
       return;
     }
 
-    if (!formData.shipment_number.trim()) {
+    if (!formData.lotNumber.trim()) {
       setError('Lot number is required');
       return;
     }
@@ -44,8 +44,8 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
         ...formData,
         quantity: formData.quantity ? parseInt(formData.quantity, 10) : null,
         status: 'pending',
-        created_by: user?.id,
-        created_at: new Date().toISOString()
+        createdBy: user?.id,
+        createdAt: new Date().toISOString()
       };
 
       await shipmentsApi.create(shipmentData);
@@ -64,11 +64,11 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
   };
 
   // Auto-fill supplier when part type is selected
-  const handlePartTypeChange = (part_type_id) => {
-    const selectedPart = partTypes?.find(p => p.id === part_type_id);
+  const handlePartTypeChange = (partTypeId) => {
+    const selectedPart = partTypes?.find(p => p.id === partTypeId);
     setFormData(prev => ({
       ...prev,
-      part_type_id,
+      partTypeId,
       supplier: selectedPart?.supplier || prev.supplier
     }));
   };
@@ -91,7 +91,7 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
                 <label className="form-label">Part Type *</label>
                 <select
                   className="form-select"
-                  value={formData.part_type_id}
+                  value={formData.partTypeId}
                   onChange={(e) => handlePartTypeChange(e.target.value)}
                   required
                 >
@@ -115,8 +115,8 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
                   <input
                     type="text"
                     className="form-control"
-                    value={formData.shipment_number}
-                    onChange={(e) => handleChange('shipment_number', e.target.value)}
+                    value={formData.lotNumber}
+                    onChange={(e) => handleChange('lotNumber', e.target.value)}
                     placeholder="e.g., LOT-2026-001"
                     required
                   />
@@ -126,8 +126,8 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
                   <input
                     type="text"
                     className="form-control"
-                    value={formData.po_number}
-                    onChange={(e) => handleChange('po_number', e.target.value)}
+                    value={formData.poNumber}
+                    onChange={(e) => handleChange('poNumber', e.target.value)}
                     placeholder="e.g., PO-12345"
                   />
                 </div>
@@ -150,8 +150,8 @@ export default function NewShipmentModal({ onClose, onSuccess }) {
                   <input
                     type="date"
                     className="form-control"
-                    value={formData.received_date}
-                    onChange={(e) => handleChange('received_date', e.target.value)}
+                    value={formData.receivedDate}
+                    onChange={(e) => handleChange('receivedDate', e.target.value)}
                   />
                 </div>
               </div>

@@ -1,4 +1,4 @@
-﻿// src/features/warranty/Warranty.jsx
+// src/features/warranty/Warranty.jsx
 // MIGRATED FROM FIREBASE TO REST API
 
 import React, { useState, useContext } from 'react';
@@ -15,8 +15,8 @@ export default function Warranty() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const getPartTypeName = (part_type_id) => {
-    const pt = partTypes?.find(p => p.id === part_type_id);
+  const getPartTypeName = (partTypeId) => {
+    const pt = partTypes?.find(p => p.id === partTypeId);
     return pt ? pt.partNumber : 'Unknown';
   };
 
@@ -26,10 +26,10 @@ export default function Warranty() {
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
-        c.claim_number?.toLowerCase().includes(search) ||
-        c.customer_name?.toLowerCase().includes(search) ||
-        c.failure_description?.toLowerCase().includes(search) ||
-        getPartTypeName(c.part_type_id).toLowerCase().includes(search)
+        c.claimNumber?.toLowerCase().includes(search) ||
+        c.customerName?.toLowerCase().includes(search) ||
+        c.description?.toLowerCase().includes(search) ||
+        getPartTypeName(c.partTypeId).toLowerCase().includes(search)
       );
     }
     return true;
@@ -37,7 +37,7 @@ export default function Warranty() {
 
   // Sort by date (newest first)
   const sortedClaims = [...filteredClaims].sort((a, b) => {
-    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
   });
 
   const handleOpenModal = (claim = null) => {
@@ -46,7 +46,7 @@ export default function Warranty() {
   };
 
   const handleDelete = async (claim) => {
-    if (!window.confirm(`Delete warranty claim "${claim.claim_number}"?`)) return;
+    if (!window.confirm(`Delete warranty claim "${claim.claimNumber}"?`)) return;
 
     try {
       setLoading(true);
@@ -160,7 +160,7 @@ export default function Warranty() {
               <input
                 type="text"
                 className="form-control"
-                placeholder="Search by claim #, customer, failure_description..."
+                placeholder="Search by claim #, customer, description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -218,15 +218,15 @@ export default function Warranty() {
                 {sortedClaims.map((claim) => (
                   <tr key={claim.id}>
                     <td>
-                      <strong>{claim.claim_number || `WC-${claim.id.slice(-6).toUpperCase()}`}</strong>
+                      <strong>{claim.claimNumber || `WC-${claim.id.slice(-6).toUpperCase()}`}</strong>
                     </td>
-                    <td>{claim.customer_name || '-'}</td>
-                    <td>{getPartTypeName(claim.part_type_id)}</td>
+                    <td>{claim.customerName || '-'}</td>
+                    <td>{getPartTypeName(claim.partTypeId)}</td>
                     <td>
-                      <span title={claim.failure_description}>
-                        {claim.failure_description?.length > 40
-                          ? claim.failure_description.substring(0, 40) + '...'
-                          : claim.failure_description || '-'}
+                      <span title={claim.description}>
+                        {claim.description?.length > 40
+                          ? claim.description.substring(0, 40) + '...'
+                          : claim.description || '-'}
                       </span>
                     </td>
                     <td>
@@ -243,7 +243,7 @@ export default function Warranty() {
                     </td>
                     <td>
                       <small>
-                        {claim.created_at ? new Date(claim.created_at).toLocaleDateString() : '-'}
+                        {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : '-'}
                       </small>
                     </td>
                     <td>

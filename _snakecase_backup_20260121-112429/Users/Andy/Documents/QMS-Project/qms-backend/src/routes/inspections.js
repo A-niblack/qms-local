@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -49,13 +49,13 @@ router.get('/:id', async (req, res) => {
 // Create inspection
 router.post('/', async (req, res) => {
   try {
-    const { shipment_id, inspection_plan_id, inspection_type, sample_size, results, notes } = req.body;
+    const { shipmentId, inspectionPlanId, inspectionType, sampleSize, results, notes } = req.body;
     
     const id = uuidv4();
     await pool.query(
       `INSERT INTO inspections (id, shipment_id, inspection_plan_id, inspector_id, inspection_type, sample_size, results, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, shipment_id, inspection_plan_id || null, req.user.userId, inspection_type || 'incoming', sample_size || 5, JSON.stringify(results || {}), notes || '']
+      [id, shipmentId, inspectionPlanId || null, req.user.userId, inspectionType || 'incoming', sampleSize || 5, JSON.stringify(results || {}), notes || '']
     );
 
     const [newInspection] = await pool.query('SELECT * FROM inspections WHERE id = ?', [id]);
@@ -69,14 +69,14 @@ router.post('/', async (req, res) => {
 // Update inspection
 router.put('/:id', async (req, res) => {
   try {
-    const { results, defects_found, status, disposition, notes } = req.body;
+    const { results, defectsFound, status, disposition, notes } = req.body;
     
     const completedAt = status === 'passed' || status === 'failed' ? new Date() : null;
     
     await pool.query(
       `UPDATE inspections SET results = ?, defects_found = ?, status = ?, disposition = ?, notes = ?, completed_at = ?
        WHERE id = ?`,
-      [JSON.stringify(results || {}), defects_found || 0, status, disposition, notes, completedAt, req.params.id]
+      [JSON.stringify(results || {}), defectsFound || 0, status, disposition, notes, completedAt, req.params.id]
     );
 
     // Update shipment status if inspection is complete

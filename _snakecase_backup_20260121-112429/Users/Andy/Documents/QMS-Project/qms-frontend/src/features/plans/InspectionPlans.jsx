@@ -1,4 +1,4 @@
-﻿// src/features/plans/InspectionPlans.jsx
+// src/features/plans/InspectionPlans.jsx
 // MIGRATED FROM FIREBASE TO REST API
 
 import React, { useState, useContext } from 'react';
@@ -13,13 +13,13 @@ export default function InspectionPlans() {
   const [error, setError] = useState(null);
 
   const [formData, setFormData] = useState({
-    part_type_id: '',
+    partTypeId: '',
     name: '',
     description: '',
     sampleSizeFormula: 'sqrt',
-    sample_size: '',
+    defaultSampleSize: '',
     characteristics: [],
-    is_active: true
+    isActive: true
   });
 
   const [newCharacteristic, setNewCharacteristic] = useState({
@@ -33,7 +33,7 @@ export default function InspectionPlans() {
   });
 
   const sampleSizeFormulas = [
-    { value: 'sqrt', label: 'Square Root (âˆšn)' },
+    { value: 'sqrt', label: 'Square Root (√n)' },
     { value: 'fixed', label: 'Fixed Size' },
     { value: 'aql', label: 'AQL Table' },
     { value: '100', label: '100% Inspection' }
@@ -41,13 +41,13 @@ export default function InspectionPlans() {
 
   const resetForm = () => {
     setFormData({
-      part_type_id: '',
+      partTypeId: '',
       name: '',
       description: '',
       sampleSizeFormula: 'sqrt',
-      sample_size: '',
+      defaultSampleSize: '',
       characteristics: [],
-      is_active: true
+      isActive: true
     });
     setEditingPlan(null);
     setError(null);
@@ -57,13 +57,13 @@ export default function InspectionPlans() {
     if (plan) {
       setEditingPlan(plan);
       setFormData({
-        part_type_id: plan.part_type_id || '',
+        partTypeId: plan.partTypeId || '',
         name: plan.name || '',
         description: plan.description || '',
         sampleSizeFormula: plan.sampleSizeFormula || 'sqrt',
-        sample_size: plan.sample_size || '',
+        defaultSampleSize: plan.defaultSampleSize || '',
         characteristics: plan.characteristics || [],
-        is_active: plan.is_active !== false
+        isActive: plan.isActive !== false
       });
     } else {
       resetForm();
@@ -107,7 +107,7 @@ export default function InspectionPlans() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.part_type_id) {
+    if (!formData.partTypeId) {
       setError('Please select a part type');
       return;
     }
@@ -123,7 +123,7 @@ export default function InspectionPlans() {
 
       const planData = {
         ...formData,
-        sample_size: formData.sample_size ? parseInt(formData.sample_size, 10) : null,
+        defaultSampleSize: formData.defaultSampleSize ? parseInt(formData.defaultSampleSize, 10) : null,
         updatedBy: user?.id
       };
 
@@ -160,16 +160,16 @@ export default function InspectionPlans() {
     }
   };
 
-  const getPartTypeName = (part_type_id) => {
-    const pt = partTypes?.find(p => p.id === part_type_id);
+  const getPartTypeName = (partTypeId) => {
+    const pt = partTypes?.find(p => p.id === partTypeId);
     return pt ? pt.partNumber : 'Unknown';
   };
 
   // Active part types that don't have a plan yet (for new plans)
   const availablePartTypes = partTypes?.filter(pt => {
-    if (pt.is_active === false) return false;
-    if (editingPlan && editingPlan.part_type_id === pt.id) return true;
-    return !inspectionPlans?.some(p => p.part_type_id === pt.id);
+    if (pt.isActive === false) return false;
+    if (editingPlan && editingPlan.partTypeId === pt.id) return true;
+    return !inspectionPlans?.some(p => p.partTypeId === pt.id);
   }) || [];
 
   return (
@@ -202,16 +202,16 @@ export default function InspectionPlans() {
         <div className="row">
           {inspectionPlans?.map((plan) => (
             <div key={plan.id} className="col-lg-6 mb-4">
-              <div className={`card h-100 ${plan.is_active === false ? 'border-secondary' : ''}`}>
+              <div className={`card h-100 ${plan.isActive === false ? 'border-secondary' : ''}`}>
                 <div className="card-header d-flex justify-content-between align-items-center">
                   <div>
                     <strong>{plan.name}</strong>
-                    {plan.is_active === false && (
+                    {plan.isActive === false && (
                       <span className="badge bg-secondary ms-2">Inactive</span>
                     )}
                   </div>
                   <span className="badge bg-primary">
-                    {getPartTypeName(plan.part_type_id)}
+                    {getPartTypeName(plan.partTypeId)}
                   </span>
                 </div>
                 <div className="card-body">
@@ -224,7 +224,7 @@ export default function InspectionPlans() {
                       <small className="text-muted">Sample Size</small>
                       <div>
                         {sampleSizeFormulas.find(f => f.value === plan.sampleSizeFormula)?.label || 'Square Root'}
-                        {plan.sample_size && ` (${plan.sample_size})`}
+                        {plan.defaultSampleSize && ` (${plan.defaultSampleSize})`}
                       </div>
                     </div>
                     <div className="col-6">
@@ -240,7 +240,7 @@ export default function InspectionPlans() {
                       <ul className="list-unstyled small mb-0 mt-1">
                         {plan.characteristics.slice(0, 5).map((char, idx) => (
                           <li key={char.id || idx}>
-                            {char.isCritical && <span className="text-danger">â— </span>}
+                            {char.isCritical && <span className="text-danger">● </span>}
                             {char.name}
                             {char.nominal && ` (${char.nominal}${char.unit || ''})`}
                           </li>
@@ -295,8 +295,8 @@ export default function InspectionPlans() {
                       <label className="form-label">Part Type *</label>
                       <select
                         className="form-select"
-                        value={formData.part_type_id}
-                        onChange={(e) => setFormData({ ...formData, part_type_id: e.target.value })}
+                        value={formData.partTypeId}
+                        onChange={(e) => setFormData({ ...formData, partTypeId: e.target.value })}
                         required
                         disabled={editingPlan}
                       >
@@ -348,8 +348,8 @@ export default function InspectionPlans() {
                       <input
                         type="number"
                         className="form-control"
-                        value={formData.sample_size}
-                        onChange={(e) => setFormData({ ...formData, sample_size: e.target.value })}
+                        value={formData.defaultSampleSize}
+                        onChange={(e) => setFormData({ ...formData, defaultSampleSize: e.target.value })}
                         min="1"
                       />
                     </div>
@@ -359,8 +359,8 @@ export default function InspectionPlans() {
                           type="checkbox"
                           className="form-check-input"
                           id="planActive"
-                          checked={formData.is_active}
-                          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                          checked={formData.isActive}
+                          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                         />
                         <label className="form-check-label" htmlFor="planActive">Active</label>
                       </div>
@@ -494,7 +494,7 @@ export default function InspectionPlans() {
                                   className="btn btn-sm btn-outline-danger"
                                   onClick={() => handleRemoveCharacteristic(char.id)}
                                 >
-                                  Ã—
+                                  ×
                                 </button>
                               </td>
                             </tr>
