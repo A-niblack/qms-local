@@ -14,6 +14,7 @@ import quarantineRoutes from './routes/quarantine.js';
 import warrantyRoutes from './routes/warranty.js';
 import gageRoutes from './routes/gages.js';
 import userRoutes from './routes/users.js';
+import inspectionPlanRoutes from './routes/inspectionPlans.js';
 
 // Create Express app
 const app = express();
@@ -72,6 +73,7 @@ app.use('/api/quarantine', quarantineRoutes);
 app.use('/api/warranty', warrantyRoutes);
 app.use('/api/gages', gageRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/inspection-plans', inspectionPlanRoutes);
 
 // ==========================================
 // ERROR HANDLING

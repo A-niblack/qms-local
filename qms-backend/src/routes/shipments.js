@@ -68,23 +68,77 @@ router.post('/', async (req, res) => {
 });
 
 // Update shipment
+// Update the PUT route to handle both naming conventions
 router.put('/:id', async (req, res) => {
   try {
-    const { partTypeId, shipmentNumber, supplier, supplierLot, quantity, quantityReceived, receivedDate, poNumber, status, notes } = req.body;
+    const { 
+      partTypeId, 
+      part_type_id,
+      shipmentNumber, 
+      shipment_number,
+      supplier, 
+      supplierLot, 
+      supplier_lot,
+      quantity, 
+      quantityReceived, 
+      quantity_received,
+      receivedDate, 
+      received_date,
+      poNumber, 
+      po_number,
+      status, 
+      notes,
+      lotNumber,
+      lot_number
+    } = req.body;
+    
+    // Handle both camelCase and snake_case
+    const finalPartTypeId = partTypeId || part_type_id;
+    const finalShipmentNumber = shipmentNumber || shipment_number || lotNumber || lot_number;
+    const finalSupplierLot = supplierLot || supplier_lot;
+    const finalQuantityReceived = quantityReceived || quantity_received;
+    const finalReceivedDate = receivedDate || received_date;
+    const finalPoNumber = poNumber || po_number;
     
     await pool.query(
-      `UPDATE shipments SET part_type_id = ?, shipment_number = ?, supplier = ?, supplier_lot = ?, 
-       quantity = ?, quantity_received = ?, received_date = ?, po_number = ?, status = ?, notes = ?
+      `UPDATE shipments 
+       SET part_type_id = COALESCE(?, part_type_id), 
+           shipment_number = COALESCE(?, shipment_number), 
+           supplier = COALESCE(?, supplier), 
+           supplier_lot = COALESCE(?, supplier_lot), 
+           quantity = COALESCE(?, quantity), 
+           quantity_received = COALESCE(?, quantity_received), 
+           received_date = COALESCE(?, received_date), 
+           po_number = COALESCE(?, po_number), 
+           status = COALESCE(?, status), 
+           notes = COALESCE(?, notes)
        WHERE id = ?`,
-      [partTypeId, shipmentNumber, supplier, supplierLot, quantity, quantityReceived, receivedDate, poNumber, status, notes, req.params.id]
+      [
+        finalPartTypeId, 
+        finalShipmentNumber, 
+        supplier, 
+        finalSupplierLot, 
+        quantity, 
+        finalQuantityReceived, 
+        finalReceivedDate, 
+        finalPoNumber, 
+        status, 
+        notes, 
+        req.params.id
+      ]
     );
 
     const [updated] = await pool.query('SELECT * FROM shipments WHERE id = ?', [req.params.id]);
+    if (updated.length === 0) {
+      return res.status(404).json({ error: 'Shipment not found' });
+    }
     res.json(updated[0]);
   } catch (error) {
+    console.error('Update shipment error:', error);
     res.status(500).json({ error: 'Failed to update shipment' });
   }
 });
+
 
 // Delete shipment
 router.delete('/:id', requireRole('admin'), async (req, res) => {

@@ -64,13 +64,13 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
   try {
-    const { partNumber, name, description, category } = req.body;
+    const { partNumber, name, description, category, supplier, revision, drawingNumber, drawingUrl, drawingFileName, isActive } = req.body;
 
-    // Validation
-    if (!partNumber || !name) {
+    // Validation - only partNumber is truly required
+    if (!partNumber) {
       return res.status(400).json({ 
         error: 'Validation failed',
-        message: 'Part number and name are required' 
+        message: 'Part number is required' 
       });
     }
 
@@ -88,6 +88,8 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
         upgradeRequired: true
       });
     }
+    // Use partNumber as name if name not provided
+    const partName = name || partNumber;
 
     // Check for duplicate part number
     const [existing] = await pool.query(
@@ -105,10 +107,10 @@ router.post('/', requireRole('admin'), getTierLimits, async (req, res) => {
     // Create part type
     const id = uuidv4();
     
-    await pool.query(
+     await pool.query(
       `INSERT INTO part_types (id, part_number, name, description, category, created_by)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, partNumber, name, description || '', category || '', req.user.userId]
+      [id, partNumber, partName, description || '', category || '', req.user.userId]
     );
 
     // Fetch and return the created part type

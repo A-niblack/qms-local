@@ -38,28 +38,78 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create warranty claim
+// Update the POST route to handle frontend field names
 router.post('/', async (req, res) => {
   try {
-    const { partTypeId, claimNumber, customerName, customerContact, customerEmail, customerPhone, 
-            quantity, failureDate, failureDescription, failureMode, serialNumbers } = req.body;
+    const { 
+      partTypeId, 
+      claimNumber, 
+      customerName, 
+      customerContact, 
+      customerEmail, 
+      customerPhone, 
+      quantity, 
+      failureDate,
+      purchaseDate,
+      description,        // Frontend sends this
+      failureDescription, // Backend originally expected this
+      failureMode, 
+      serialNumber,       // Frontend sends singular
+      serialNumbers,      // Backend expected plural
+      rootCause,
+      correctiveAction,
+      resolution,
+      priority,
+      status,
+      cost,
+      images,
+      attachments,
+      notes
+    } = req.body;
     
+    // Use description or failureDescription
+    const failureDesc = description || failureDescription;
+    
+    if (!failureDesc) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: 'Description is required'
+      });
+    }
+
     const id = uuidv4();
     await pool.query(
-      `INSERT INTO warranty_claims (id, part_type_id, claim_number, customer_name, customer_contact, 
-       customer_email, customer_phone, quantity, failure_date, failure_description, failure_mode, 
-       serial_numbers, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, partTypeId, claimNumber || null, customerName, customerContact || '', customerEmail || '',
-       customerPhone || '', quantity || 1, failureDate || null, failureDescription, failureMode || '',
-       serialNumbers || '', req.user.userId]
+      `INSERT INTO warranty_claims 
+       (id, part_type_id, claim_number, customer_name, customer_contact, 
+        customer_email, customer_phone, quantity, failure_date, failure_description, 
+        failure_mode, serial_numbers, status, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id, 
+        partTypeId || null, 
+        claimNumber || null, 
+        customerName || '', 
+        customerContact || '', 
+        customerEmail || '',
+        customerPhone || '', 
+        quantity || 1, 
+        failureDate || null, 
+        failureDesc,
+        failureMode || '',
+        serialNumber || serialNumbers || '', 
+        status || 'open',
+        req.user.userId
+      ]
     );
 
     const [newClaim] = await pool.query('SELECT * FROM warranty_claims WHERE id = ?', [id]);
     res.status(201).json(newClaim[0]);
   } catch (error) {
+    console.error('Create warranty claim error:', error);
     res.status(500).json({ error: 'Failed to create warranty claim' });
   }
 });
+
 
 // Update warranty claim
 router.put('/:id', async (req, res) => {

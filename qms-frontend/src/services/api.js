@@ -48,7 +48,14 @@ const apiFetch = async (endpoint, options = {}) => {
       throw new Error('Session expired. Please log in again.');
     }
 
-    const data = await response.json();
+    // Handle 204 No Content (common for DELETE)
+    if (response.status === 204) {
+      return { success: true };
+    }
+
+    // Only parse JSON if there's content
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : {};
 
     if (!response.ok) {
       throw new Error(data.error || data.message || `HTTP error ${response.status}`);
